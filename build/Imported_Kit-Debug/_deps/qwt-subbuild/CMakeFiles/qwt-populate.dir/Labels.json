@@ -1,0 +1,46 @@
+{
+	"sources" : 
+	[
+		{
+			"file" : "/Users/aramsevagavarian/ArmBionics/build/Imported_Kit-Debug/_deps/qwt-subbuild/CMakeFiles/qwt-populate"
+		},
+		{
+			"file" : "/Users/aramsevagavarian/ArmBionics/build/Imported_Kit-Debug/_deps/qwt-subbuild/CMakeFiles/qwt-populate.rule"
+		},
+		{
+			"file" : "/Users/aramsevagavarian/ArmBionics/build/Imported_Kit-Debug/_deps/qwt-subbuild/CMakeFiles/qwt-populate-complete.rule"
+		},
+		{
+			"file" : "/Users/aramsevagavarian/ArmBionics/build/Imported_Kit-Debug/_deps/qwt-subbuild/qwt-populate-prefix/src/qwt-populate-stamp/qwt-populate-build.rule"
+		},
+		{
+			"file" : "/Users/aramsevagavarian/ArmBionics/build/Imported_Kit-Debug/_deps/qwt-subbuild/qwt-populate-prefix/src/qwt-populate-stamp/qwt-populate-configure.rule"
+		},
+		{
+			"file" : "/Users/aramsevagavarian/ArmBionics/build/Imported_Kit-Debug/_deps/qwt-subbuild/qwt-populate-prefix/src/qwt-populate-stamp/qwt-populate-download.rule"
+		},
+		{
+			"file" : "/Users/aramsevagavarian/ArmBionics/build/Imported_Kit-Debug/_deps/qwt-subbuild/qwt-populate-prefix/src/qwt-populate-stamp/qwt-populate-install.rule"
+		},
+		{
+			"file" : "/Users/aramsevagavarian/ArmBionics/build/Imported_Kit-Debug/_deps/qwt-subbuild/qwt-populate-prefix/src/qwt-populate-stamp/qwt-populate-mkdir.rule"
+		},
+		{
+			"file" : "/Users/aramsevagavarian/ArmBionics/build/Imported_Kit-Debug/_deps/qwt-subbuild/qwt-populate-prefix/src/qwt-populate-stamp/qwt-populate-patch.rule"
+		},
+		{
+			"file" : "/Users/aramsevagavarian/ArmBionics/build/Imported_Kit-Debug/_deps/qwt-subbuild/qwt-populate-prefix/src/qwt-populate-stamp/qwt-populate-test.rule"
+		},
+		{
+			"file" : "/Users/aramsevagavarian/ArmBionics/build/Imported_Kit-Debug/_deps/qwt-subbuild/qwt-populate-prefix/src/qwt-populate-stamp/qwt-populate-update.rule"
+		}
+	],
+	"target" : 
+	{
+		"labels" : 
+		[
+			"qwt-populate"
+		],
+		"name" : "qwt-populate"
+	}
+}

@@ -6,64 +6,84 @@
 ** WARNING! All changes made in this file will be lost when recompiling UI file!
 ********************************************************************************/
 
+/********************************************************************************
+** Form generated from reading UI file 'emgwidget.ui'
+**
+** Created by: Qt User Interface Compiler version 6.7.0
+**
+** WARNING! All changes made in this file will be lost when recompiling UI file!
+********************************************************************************/
+
 #ifndef UI_EMGWIDGET_H
 #define UI_EMGWIDGET_H
 
 #include <QtCore/QVariant>
 #include <QtWidgets/QApplication>
-#include <QtWidgets/QGridLayout>
+#include <QtWidgets/QComboBox>
+#include <QtWidgets/QHBoxLayout>
 #include <QtWidgets/QMainWindow>
-#include <QtWidgets/QMenuBar>
-#include <QtWidgets/QStatusBar>
+#include <QtWidgets/QPushButton>
 #include <QtWidgets/QWidget>
+#include "qcustomplot.h"
 
 QT_BEGIN_NAMESPACE
 
-class Ui_MainWindow
+class Ui_EMGViewer
 {
 public:
     QWidget *centralwidget;
-    QWidget *gridLayoutWidget;
-    QGridLayout *gridLayout;
-    QMenuBar *menubar;
-    QStatusBar *statusbar;
+    QWidget *layoutWidget;
+    QHBoxLayout *horizontalLayout;
+    QPushButton *btn_ConnectDisconnect;
+    QComboBox *cb_COMP;
+    QCustomPlot *customPlot;
 
-    void setupUi(QMainWindow *MainWindow)
+    void setupUi(QMainWindow *EMGViewer)
     {
-        if (MainWindow->objectName().isEmpty())
-            MainWindow->setObjectName("MainWindow");
-        MainWindow->resize(800, 600);
-        centralwidget = new QWidget(MainWindow);
+        if (EMGViewer->objectName().isEmpty())
+            EMGViewer->setObjectName("EMGViewer");
+        EMGViewer->resize(800, 600);
+        centralwidget = new QWidget(EMGViewer);
         centralwidget->setObjectName("centralwidget");
-        gridLayoutWidget = new QWidget(centralwidget);
-        gridLayoutWidget->setObjectName("gridLayoutWidget");
-        gridLayoutWidget->setGeometry(QRect(350, 150, 160, 80));
-        gridLayout = new QGridLayout(gridLayoutWidget);
-        gridLayout->setObjectName("gridLayout");
-        gridLayout->setContentsMargins(0, 0, 0, 0);
-        MainWindow->setCentralWidget(centralwidget);
-        menubar = new QMenuBar(MainWindow);
-        menubar->setObjectName("menubar");
-        menubar->setGeometry(QRect(0, 0, 800, 22));
-        MainWindow->setMenuBar(menubar);
-        statusbar = new QStatusBar(MainWindow);
-        statusbar->setObjectName("statusbar");
-        MainWindow->setStatusBar(statusbar);
+        layoutWidget = new QWidget(centralwidget);
+        layoutWidget->setObjectName("layoutWidget");
+        layoutWidget->setGeometry(QRect(10, 10, 291, 41));
+        horizontalLayout = new QHBoxLayout(layoutWidget);
+        horizontalLayout->setObjectName("horizontalLayout");
+        horizontalLayout->setContentsMargins(0, 0, 0, 0);
+        btn_ConnectDisconnect = new QPushButton(layoutWidget);
+        btn_ConnectDisconnect->setObjectName("btn_ConnectDisconnect");
 
-        retranslateUi(MainWindow);
+        horizontalLayout->addWidget(btn_ConnectDisconnect);
 
-        QMetaObject::connectSlotsByName(MainWindow);
+        cb_COMP = new QComboBox(layoutWidget);
+        cb_COMP->setObjectName("cb_COMP");
+        cb_COMP->setEnabled(true);
+        cb_COMP->setMinimumSize(QSize(0, 0));
+        cb_COMP->setMaximumSize(QSize(16777215, 16777215));
+
+        horizontalLayout->addWidget(cb_COMP);
+
+        customPlot = new QCustomPlot(centralwidget);
+        customPlot->setObjectName("customPlot");
+        customPlot->setGeometry(QRect(10, 80, 780, 520));
+        EMGViewer->setCentralWidget(centralwidget);
+
+        retranslateUi(EMGViewer);
+
+        QMetaObject::connectSlotsByName(EMGViewer);
     } // setupUi
 
-    void retranslateUi(QMainWindow *MainWindow)
+    void retranslateUi(QMainWindow *EMGViewer)
     {
-        MainWindow->setWindowTitle(QCoreApplication::translate("MainWindow", "MainWindow", nullptr));
+        EMGViewer->setWindowTitle(QCoreApplication::translate("EMGViewer", "EMG Viewer", nullptr));
+        btn_ConnectDisconnect->setText(QCoreApplication::translate("EMGViewer", "Connect", nullptr));
     } // retranslateUi
 
 };
 
 namespace Ui {
-    class MainWindow: public Ui_MainWindow {};
+    class EMGViewer: public Ui_EMGViewer {};
 } // namespace Ui
 
 QT_END_NAMESPACE

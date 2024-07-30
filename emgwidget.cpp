@@ -7,6 +7,7 @@
 
 const qint16 SECONDS_SHOW_ON_GRAPH = 120;  // Display 120 seconds on the graph
 QList<double> time_axis;
+QList<QString> time_axis_string; // To save the data and for displaying purposes
 QList<double> voltage_axis;
 static qint64 voltage_data_idx = 0;   // Used for x-axis range setting
 static qint64 startTime;
@@ -15,6 +16,7 @@ static qint64 startTime;
 EMGWidget::EMGWidget(QWidget *parent) : QMainWindow(parent) , ui(new Ui::EMGWidget)
 {
     ui->setupUi(this);
+    connect(ui->actionSave, &QAction::triggered, this, &EMGWidget::on_actionSave_triggered);
 
     // Initialize the log viewer
     logToModel(ui->textBrowser->document());
@@ -44,7 +46,6 @@ EMGWidget::~EMGWidget()
 
     delete ui;
 }
-
 
 void EMGWidget::on_btn_ConnectDisconnect_clicked(void)
 {
@@ -129,13 +130,15 @@ void EMGWidget::read_data()
                 double now = QDateTime::currentSecsSinceEpoch();
 
                 // Append data for plotting
+                time_axis_string.append(QDateTime::currentDateTime().toString("hh:mm:ss"));
+                time_axis_string.append(QDateTime::currentDateTime().toString("hh:mm:ss"));
                 voltage_axis.append(emg1);
                 voltage_axis.append(emg2);
                 time_axis.append(now);
                 time_axis.append(now);
 
                 // Debug output
-                qDebug() << "EMG1:" << emg1 << "EMG2:" << emg2;
+                qDebug() << QDateTime::currentDateTime().toString("hh:mm:ss") << "EMG1:" << emg1 << "EMG2:" << emg2;
             }
             else
             {
@@ -151,9 +154,10 @@ void EMGWidget::read_data()
     }
 }
 
-// Function to convert 4-byte QByteArray to integer
 qint32 EMGWidget::QByteArrayToInt(const QByteArray& bytes)
 {
+    // Function to convert 4-byte QByteArray to integer
+
     // Ensure the byte array represents a valid ASCII number
     QString str = QString::fromUtf8(bytes); // Convert bytes to QString (UTF-8)
     bool ok;
@@ -170,9 +174,10 @@ void EMGWidget::plotEMGGraph(void){
     ui->customPlot->xAxis->setLabel("Time");
     ui->customPlot->yAxis->setLabel("Voltage");
 
-    // Set plot line color
+    // Set plot line color (RGB)
     QColor color(40, 110, 255);
 
+    // Set line, pen and brush styles
     ui->customPlot->graph(0)->setLineStyle(QCPGraph::lsLine);
     ui->customPlot->graph(0)->setPen(QPen(color.lighter(30)));
     ui->customPlot->graph(0)->setBrush(QBrush(color));
@@ -193,16 +198,19 @@ void EMGWidget::plotEMGGraph(void){
     QCPTextElement *title = new QCPTextElement(ui->customPlot);
     title->setText("EMG Signal Real-Time Plot");
     title->setFont(QFont("Helvetica", 12, QFont::Bold));
+
     // then we add it to the main plot layout:
     // insert an empty row above the axis rect
     ui->customPlot->plotLayout()->insertRow(0);
+
     // place the title in the empty cell we've just created
     ui->customPlot->plotLayout()->addElement(0, 0, title);
 
     // Start Timer to Refresh the graph
     QTimer *timer = new QTimer(this);
     connect(timer, &QTimer::timeout, this, &EMGWidget::refreshGraph);
-    // Start Timer @ 1 millisecond
+
+    // Start timer at 1 second
     timer->start(1000);
 
 }
@@ -222,3 +230,44 @@ void EMGWidget::refreshGraph(void)
         ui->customPlot->replot();
     }
 }
+
+void EMGWidget::on_actionSave_triggered()
+{
+    QString filename = QFileDialog::getSaveFileName(this, "Save Data", "", "Text Files (*.txt);;All Files (*)");
+    if (!filename.isEmpty())
+    {
+        saveDataToFile(filename);
+    }
+}
+
+void EMGWidget::saveDataToFile(const QString& filename)
+{
+    QFile file(filename);
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Text))
+    {
+        qWarning() << "Unable to open file for writing:" << file.errorString();
+        return;
+    }
+
+    QTextStream out(&file);
+
+    // Write header
+    out << "Time, EMG1, EMG2\n";
+
+    // Write data
+    for (int i = 0; i < time_axis.size(); ++i)
+    {
+        out << time_axis_string[i] << ", " << voltage_axis[i] << ", " << voltage_axis[i + 1] << "\n";
+        i++; // Increment to skip the next value because we're writing pairs
+    }
+
+    file.close();
+    qInfo() << "Data saved to" << filename;
+}
+
+void EMGWidget::on_actionOpen_triggered()
+{
+    QFileDialog::getOpenFileName(this, "Save Data", "", "Text Files (*.txt);;All Files (*)");
+
+}
+

@@ -25,6 +25,10 @@ public:
 private slots:
     void on_btn_ConnectDisconnect_clicked();
 
+    void on_actionSave_triggered();
+
+    void on_actionOpen_triggered();
+
 public slots:
     void read_data(void);
 
@@ -36,6 +40,7 @@ private:
     void plotEMGGraph(void);
     QTextBrowser *logViewer;
     qint32 QByteArrayToInt(const QByteArray& bytes);
+    void saveDataToFile(const QString& filename);
 };
 
 #endif // EMGWIDGET_H

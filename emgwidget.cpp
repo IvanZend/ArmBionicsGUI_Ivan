@@ -3,9 +3,9 @@
 #include "logger.h"
 #include <QDateTime>
 #include <QResizeEvent>
+#include "definitions.h"
 
-
-const qint8 SECONDS_SHOW_ON_GRAPH = 120;  // Display 120 seconds on the graph
+const qint16 SECONDS_SHOW_ON_GRAPH = 120;  // Display 120 seconds on the graph
 QList<double> time_axis;
 QList<double> voltage_axis;
 static qint64 voltage_data_idx = 0;   // Used for x-axis range setting
@@ -99,25 +99,66 @@ void EMGWidget::on_btn_ConnectDisconnect_clicked(void)
 
 void EMGWidget::read_data()
 {
-    char data;
-    float voltage_value;
-    double now = QDateTime::currentSecsSinceEpoch();
+    static QByteArray buffer; // To accumulate incoming data
 
-    while(m_serial.bytesAvailable())
+    // Read all available bytes
+    buffer.append(m_serial.readAll());
+
+    // Process the buffer if it has enough data
+    while (buffer.size() >= PACKET_SIZE)
     {
-        // Read one byte at a time
-        m_serial.read(&data, 1);
-        if((data != '\r') && (data != '\n'))
+        // Check for the start keyword
+        if (buffer.left(KEYWORD_SIZE) == PACKET_KEYWORD)
         {
-            // convert adc counts back to the temperature value
-            // temperature = (adc counts * VCC in mV/ADC Resolution)/10mV
-            voltage_value = data;
-            qDebug() << data;
-            time_axis.append(now);
-            voltage_axis.append(voltage_value);
-            voltage_data_idx++;
+            // Extract the packet
+            QByteArray packet = buffer.left(PACKET_SIZE);
+            buffer.remove(0, PACKET_SIZE);
+
+            // Validate markers and extract EMG data
+            if (packet[KEYWORD_SIZE] == EMG_START_CHAR && packet[KEYWORD_SIZE+EMG_VALUE_SIZE+EMG_START_SIZE] == EMG_START_CHAR)
+            {
+                // Extract the EMG data bytes
+                QByteArray emg1_bytes = packet.mid(KEYWORD_SIZE+EMG_START_SIZE, EMG_VALUE_SIZE);
+                QByteArray emg2_bytes = packet.mid(KEYWORD_SIZE+EMG_VALUE_SIZE+2*EMG_START_SIZE, EMG_VALUE_SIZE);
+
+                // Convert bytes to integers (assuming little-endian)
+                int emg1 = QByteArrayToInt(emg1_bytes);
+                int emg2 = QByteArrayToInt(emg2_bytes);
+
+                // Convert to voltage values or directly use as needed
+                double now = QDateTime::currentSecsSinceEpoch();
+
+                // Append data for plotting
+                voltage_axis.append(emg1);
+                voltage_axis.append(emg2);
+                time_axis.append(now);
+                time_axis.append(now);
+
+                // Debug output
+                qDebug() << "EMG1:" << emg1 << "EMG2:" << emg2;
+            }
+            else
+            {
+                // Invalid packet format, discard the first byte
+                buffer.remove(0, 1);
+            }
+        }
+        else
+        {
+            // If the start keyword is not found, discard the first byte
+            buffer.remove(0, 1);
         }
     }
+}
+
+// Function to convert 4-byte QByteArray to integer
+qint32 EMGWidget::QByteArrayToInt(const QByteArray& bytes)
+{
+    // Ensure the byte array represents a valid ASCII number
+    QString str = QString::fromUtf8(bytes); // Convert bytes to QString (UTF-8)
+    bool ok;
+    int number = str.toInt(&ok); // Convert QString to integer
+    return ok ? number : 0; // Return 0 if conversion fails
 }
 
 void EMGWidget::plotEMGGraph(void){
@@ -132,7 +173,7 @@ void EMGWidget::plotEMGGraph(void){
     // Set plot line color
     QColor color(40, 110, 255);
 
-    ui->customPlot->graph(0)->setLineStyle( QCPGraph::lsLine);
+    ui->customPlot->graph(0)->setLineStyle(QCPGraph::lsLine);
     ui->customPlot->graph(0)->setPen(QPen(color.lighter(30)));
     ui->customPlot->graph(0)->setBrush(QBrush(color));
 
@@ -161,7 +202,7 @@ void EMGWidget::plotEMGGraph(void){
     // Start Timer to Refresh the graph
     QTimer *timer = new QTimer(this);
     connect(timer, &QTimer::timeout, this, &EMGWidget::refreshGraph);
-    // Start Timer @ 1 second
+    // Start Timer @ 1 millisecond
     timer->start(1000);
 
 }
@@ -181,4 +222,3 @@ void EMGWidget::refreshGraph(void)
         ui->customPlot->replot();
     }
 }
-

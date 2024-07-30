@@ -35,6 +35,7 @@ private:
     void refreshGraph(void);
     void plotEMGGraph(void);
     QTextBrowser *logViewer;
+    qint32 QByteArrayToInt(const QByteArray& bytes);
 };
 
 #endif // EMGWIDGET_H

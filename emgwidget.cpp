@@ -5,7 +5,7 @@
 #include <QResizeEvent>
 #include "definitions.h"
 
-const qint16 SECONDS_SHOW_ON_GRAPH = 120;  // Display 120 seconds on the graph
+const qint16 SECONDS_SHOW_ON_GRAPH = 20;  // Display 120 seconds on the graph
 QList<double> time_axis;
 QList<QString> time_axis_string; // To save the data and for displaying purposes
 QList<double> voltage_axis;
@@ -138,7 +138,7 @@ void EMGWidget::read_data()
                 time_axis.append(now);
 
                 // Debug output
-                qDebug() << QDateTime::currentDateTime().toString("hh:mm:ss") << "EMG1:" << emg1 << "EMG2:" << emg2;
+                qDebug() << QDateTime::currentDateTime().toString("hh:mm:ss") << "\t" << "EMG1:" << emg1 << "\t" << "EMG2:" << emg2;
             }
             else
             {
@@ -180,7 +180,7 @@ void EMGWidget::plotEMGGraph(void){
     // Set line, pen and brush styles
     ui->customPlot->graph(0)->setLineStyle(QCPGraph::lsLine);
     ui->customPlot->graph(0)->setPen(QPen(color.lighter(30)));
-    ui->customPlot->graph(0)->setBrush(QBrush(color));
+    ui->customPlot->graph(0)->setBrush(Qt::NoBrush);
 
     // Set time on the x-axis:
     QSharedPointer<QCPAxisTickerDateTime> date_time_ticker(new QCPAxisTickerDateTime);
@@ -206,7 +206,7 @@ void EMGWidget::plotEMGGraph(void){
     // place the title in the empty cell we've just created
     ui->customPlot->plotLayout()->addElement(0, 0, title);
 
-    // Start Timer to Refresh the graph
+    // Start Timer to refresh the graph
     QTimer *timer = new QTimer(this);
     connect(timer, &QTimer::timeout, this, &EMGWidget::refreshGraph);
 
@@ -252,7 +252,7 @@ void EMGWidget::saveDataToFile(const QString& filename)
     QTextStream out(&file);
 
     // Write header
-    out << "Time, EMG1, EMG2\n";
+    out << "Time,\t EMG1,\t EMG2\n";
 
     // Write data
     for (int i = 0; i < time_axis.size(); ++i)
@@ -265,9 +265,83 @@ void EMGWidget::saveDataToFile(const QString& filename)
     qInfo() << "Data saved to" << filename;
 }
 
-void EMGWidget::on_actionOpen_triggered()
+void EMGWidget::on_actionOpen_triggered(void)
 {
-    QFileDialog::getOpenFileName(this, "Save Data", "", "Text Files (*.txt);;All Files (*)");
-
+    // Open a file dialog to select the file to open
+    QString filename = QFileDialog::getOpenFileName(this, "Open Data", "", "Text Files (*.txt);;All Files (*)");
+    if (!filename.isEmpty())
+    {
+        // Load and plot the data from the selected file
+        loadDataFromFile(filename);
+    }
 }
 
+void EMGWidget::loadDataFromFile(const QString& filename)
+{
+    QFile file(filename);
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text))
+    {
+        qWarning() << "Unable to open file for reading:" << file.errorString();
+        return;
+    }
+
+    QTextStream in(&file);
+
+    // Clear previous data
+    time_axis.clear();
+    voltage_axis.clear();
+    time_axis_string.clear();
+
+    // Read and parse data from file
+    QString line;
+    // Skip the header line
+    in.readLine();
+
+    while (!in.atEnd())
+    {
+        line = in.readLine();
+        QStringList fields = line.split(", ");
+        if (fields.size() >= 3)
+        {
+            bool timeOk, emg1Ok, emg2Ok;
+            double time = QDateTime::fromString(fields[0], "hh:mm:ss").toSecsSinceEpoch();
+            double emg1 = fields[1].toDouble(&emg1Ok);
+            double emg2 = fields[2].toDouble(&emg2Ok);
+
+            if (emg1Ok && emg2Ok)
+            {
+                time_axis.append(time);
+                voltage_axis.append(emg1);
+                voltage_axis.append(emg2);
+                time_axis_string.append(fields[0]);
+                time_axis_string.append(fields[0]); // Assuming each line has 2 EMG values
+            }
+        }
+    }
+
+    file.close();
+
+    // Update the graph with the new data
+    updateGraph();
+}
+
+void EMGWidget::updateGraph()
+{
+    // Ensure the plot is cleared before adding new data
+    ui->customPlot->clearGraphs();
+
+    // Re-add the graph and set the data
+    ui->customPlot->addGraph();
+    ui->customPlot->graph()->setData(time_axis, voltage_axis);
+
+    // Adjust the axes ranges based on the new data
+    if (!time_axis.isEmpty())
+    {
+        ui->customPlot->xAxis->setRange(time_axis.first(), time_axis.last());
+        ui->customPlot->yAxis->setRange(*std::min_element(voltage_axis.begin(), voltage_axis.end()),
+                                        *std::max_element(voltage_axis.begin(), voltage_axis.end()));
+    }
+
+    // Replot the graph
+    ui->customPlot->replot();
+}

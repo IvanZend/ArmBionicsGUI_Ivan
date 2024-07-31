@@ -36,11 +36,15 @@ private:
     Ui::EMGWidget *ui;
     bool connect_status = false;
     QSerialPort m_serial;
+    QTextBrowser *logViewer;
+
     void refreshGraph(void);
     void plotEMGGraph(void);
-    QTextBrowser *logViewer;
-    qint32 QByteArrayToInt(const QByteArray& bytes);
+    void updateGraph(void);
     void saveDataToFile(const QString& filename);
+    void loadDataFromFile(const QString& filename);
+
+    qint32 QByteArrayToInt(const QByteArray& bytes);
 };
 
 #endif // EMGWIDGET_H

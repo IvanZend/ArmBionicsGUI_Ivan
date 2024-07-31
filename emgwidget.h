@@ -29,14 +29,22 @@ private slots:
 
     void on_actionOpen_triggered();
 
+    void on_actionClear_triggered();
+
+    void on_actionPlot_color_triggered();
+
+    void on_actionDevice_info_triggered();
+
 public slots:
     void read_data(void);
 
 private:
     Ui::EMGWidget *ui;
     bool connect_status = false;
+    QColor plot_color = QColor(0,0,0);
     QSerialPort m_serial;
     QTextBrowser *logViewer;
+    QString deviceID;
 
     void refreshGraph(void);
     void plotEMGGraph(void);

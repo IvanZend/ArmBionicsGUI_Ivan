@@ -111,7 +111,22 @@
     <addaction name="actionSave"/>
     <addaction name="actionOpen"/>
    </widget>
+   <widget class="QMenu" name="menuEdit">
+    <property name="title">
+     <string>Edit</string>
+    </property>
+    <addaction name="actionClear"/>
+    <addaction name="actionPlot_color"/>
+   </widget>
+   <widget class="QMenu" name="menuAbout">
+    <property name="title">
+     <string>About</string>
+    </property>
+    <addaction name="actionDevice_info"/>
+   </widget>
    <addaction name="menuFile"/>
+   <addaction name="menuEdit"/>
+   <addaction name="menuAbout"/>
   </widget>
   <action name="actionSave">
    <property name="text">
@@ -124,6 +139,24 @@
   <action name="actionOpen">
    <property name="text">
     <string>Open</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+O</string>
+   </property>
+  </action>
+  <action name="actionClear">
+   <property name="text">
+    <string>Clear</string>
+   </property>
+  </action>
+  <action name="actionPlot_color">
+   <property name="text">
+    <string>Plot color</string>
+   </property>
+  </action>
+  <action name="actionDevice_info">
+   <property name="text">
+    <string>Device info</string>
    </property>
   </action>
  </widget>

@@ -10,7 +10,6 @@
 const qint16 SECONDS_SHOW_ON_GRAPH = 50;  // Display 120 seconds on the graph
 QList<double> time_axis;
 QList<QString> time_axis_string; // To save the data and for displaying purposes
-QList<double> voltage_axis;
 static qint64 voltage_data_idx = 0;   // Used for x-axis range setting
 static qint64 startTime;
 
@@ -18,7 +17,6 @@ static qint64 startTime;
 EMGWidget::EMGWidget(QWidget *parent) : QMainWindow(parent) , ui(new Ui::EMGWidget)
 {
     ui->setupUi(this);
-
     // Initialize the log viewer
     logToModel(ui->textBrowser->document());
 
@@ -103,7 +101,6 @@ void EMGWidget::read_data()
 {
     static QByteArray buffer; // To accumulate incoming data
     static QRandomGenerator randomGenerator1;
-    static QRandomGenerator randomGenerator2;
     // Read all available bytes
     buffer.append(m_serial.readAll());
 
@@ -122,30 +119,32 @@ void EMGWidget::read_data()
             // Validate markers and extract EMG data
             if (packet[KEYWORD_SIZE] == EMG_START_CHAR && packet[KEYWORD_SIZE+EMG_VALUE_SIZE+EMG_START_SIZE] == EMG_START_CHAR)
             {
+                double now = QDateTime::currentSecsSinceEpoch();
+                time_axis.append(now);
+                time_axis_string.append(QDateTime::currentDateTime().toString("hh:mm:ss"));
+
+                // For debug output
+                QStringList emg_values;
+
+                for(quint8 i = 0; i < num_emg; i++){
                 // Extract the EMG data bytes
-                QByteArray emg1_bytes = packet.mid(KEYWORD_SIZE+EMG_START_SIZE, EMG_VALUE_SIZE);
-                QByteArray emg2_bytes = packet.mid(KEYWORD_SIZE+EMG_VALUE_SIZE+2*EMG_START_SIZE, EMG_VALUE_SIZE);
+                QByteArray emg_bytes = packet.mid(KEYWORD_SIZE+i*EMG_VALUE_SIZE+(i+1)*EMG_START_SIZE, EMG_VALUE_SIZE);
 
                 // Convert bytes to integers (assuming little-endian)
-                int emg1 = QByteArrayToInt(emg1_bytes);
-                int emg2 = QByteArrayToInt(emg2_bytes);
+                int emg = QByteArrayToInt(emg_bytes);
 
                 // TEMPORARY: using random values to generate data
                 double rng_multiplier1 = randomGenerator1.bounded(10);
-                double rng_multiplier2 = -5+randomGenerator2.bounded(10);
-
-                double now = QDateTime::currentSecsSinceEpoch();
 
                 // Append data for plotting
-                time_axis_string.append(QDateTime::currentDateTime().toString("hh:mm:ss"));
-                time_axis_string.append(QDateTime::currentDateTime().toString("hh:mm:ss"));
-                voltage_axis.append(emg1*rng_multiplier1/1000);
-                voltage_axis.append(emg2*rng_multiplier2/1000);
-                time_axis.append(now);
-                time_axis.append(now);
+                emg_data[i].append(emg/ 1000);
+
+                // Format debug output
+                emg_values << QString("EMG%1: %2").arg(i+1).arg(emg);
+                }
 
                 // Debug output
-                qDebug() << QDateTime::currentDateTime().toString("hh:mm:ss") << "\t" << "EMG1:" << emg1 << "\t" << "EMG2:" << emg2;
+                qDebug() << QDateTime::currentDateTime().toString("hh:mm:ss") << "\t" << emg_values.join(", ");
             }
             else
             {
@@ -175,16 +174,21 @@ qint32 EMGWidget::QByteArrayToInt(const QByteArray& bytes)
 void EMGWidget::plotEMGGraph(void){
 
     // Add graph
-    ui->customPlot->addGraph();
+    for(quint8 i = 0; i < num_emg; i++){
+        ui->customPlot->addGraph();
+
+        QColor color;
+        color.setHsv(360/(i+1), 255, 255); // Saturation and value set to max (255) for full color
+
+        // Set line, pen and brush styles
+        ui->customPlot->graph(i)->setLineStyle(QCPGraph::lsLine);
+        ui->customPlot->graph(i)->setPen(color);
+        ui->customPlot->graph(i)->setBrush(Qt::NoBrush);
+    }
 
     // Set axis labels
     ui->customPlot->xAxis->setLabel("Time");
     ui->customPlot->yAxis->setLabel("Voltage");
-
-    // Set line, pen and brush styles
-    ui->customPlot->graph(0)->setLineStyle(QCPGraph::lsLine);
-    ui->customPlot->graph(0)->setPen(plot_color);
-    ui->customPlot->graph(0)->setBrush(Qt::NoBrush);
 
     // Set time on the x-axis:
     QSharedPointer<QCPAxisTickerDateTime> date_time_ticker(new QCPAxisTickerDateTime);
@@ -224,7 +228,10 @@ void EMGWidget::refreshGraph(void)
     double now = QDateTime::currentSecsSinceEpoch();
     if(connect_status)
     {
-        ui->customPlot->graph()->setData(time_axis, voltage_axis);
+        for(quint8 i = 0 ; i < num_emg; i++){
+        ui->customPlot->graph(i)->setData(time_axis, emg_data[i]);
+        }
+
         // if time has elapsed then only start shifting the graph
         if(((qint64)(now) - startTime) > SECONDS_SHOW_ON_GRAPH)
         {
@@ -256,13 +263,20 @@ void EMGWidget::saveDataToFile(const QString& filename)
     QTextStream out(&file);
 
     // Write header
-    out << "Time,\t EMG1,\t EMG2\n";
+    out << "Time";
+    for (int i = 0; i < num_emg; ++i) {
+        out << ",\t EMG" << (i + 1);
+    }
+    out << "\n";
 
     // Write data
     for (int i = 0; i < time_axis.size(); ++i)
     {
-        out << time_axis_string[i] << ", " << voltage_axis[i] << ", " << voltage_axis[i + 1] << "\n";
-        i++; // Increment to skip the next value because we're writing pairs
+        out << time_axis_string[i];
+        for (int j = 0; j < num_emg; ++j) {
+            out << ",\t" << emg_data[j][i];
+        }
+        out << "\n";
     }
 
     file.close();
@@ -293,8 +307,10 @@ void EMGWidget::loadDataFromFile(const QString& filename)
 
     // Clear previous data
     time_axis.clear();
-    voltage_axis.clear();
     time_axis_string.clear();
+    for (int i = 0; i < num_emg; ++i) {
+        emg_data[i].clear();
+    }
 
     // Read and parse data from file
     QString line;
@@ -304,22 +320,26 @@ void EMGWidget::loadDataFromFile(const QString& filename)
     while (!in.atEnd())
     {
         line = in.readLine();
-        QStringList fields = line.split(", ");
-        if (fields.size() >= 3)
+        QStringList fields = line.split(",\t");
+        if (fields.size() >= (num_emg + 1))
         {
-            bool timeOk, emg1Ok, emg2Ok;
+            bool timeOk;
             double time = QDateTime::fromString(fields[0], "hh:mm:ss").toSecsSinceEpoch();
-            double emg1 = fields[1].toDouble(&emg1Ok);
-            double emg2 = fields[2].toDouble(&emg2Ok);
+            time_axis.append(time);
+            time_axis_string.append(fields[0]);
 
-            if (emg1Ok && emg2Ok)
-            {
-                time_axis.append(time);
-                time_axis.append(time);
-                voltage_axis.append(emg1);
-                voltage_axis.append(emg2);
-                time_axis_string.append(fields[0]);
-                time_axis_string.append(fields[0]); // Assuming each line has 2 EMG values
+            bool allEmgOk = true;
+            QVector<double> emg_values(num_emg);
+            for (int i = 0; i < num_emg; ++i) {
+                bool emgOk;
+                emg_values[i] = fields[i + 1].toDouble(&emgOk);
+                allEmgOk = allEmgOk && emgOk;
+            }
+
+            if (allEmgOk) {
+                for (int i = 0; i < num_emg; ++i) {
+                    emg_data[i].append(emg_values[i]);
+                }
             }
         }
     }
@@ -335,17 +355,34 @@ void EMGWidget::updateGraph()
     // Ensure the plot is cleared before adding new data
     ui->customPlot->clearGraphs();
 
-    // Re-add the graph and set the data
-    ui->customPlot->addGraph();
-    ui->customPlot->graph()->setData(time_axis, voltage_axis);
-    ui->customPlot->graph(0)->setPen(QPen(plot_color)); // Apply the new color
+    // Add a graph for each EMG channel and set the data
+    for (int i = 0; i < num_emg; ++i)
+    {
+        ui->customPlot->addGraph();
+        ui->customPlot->graph(i)->setData(time_axis, emg_data[i]);
+
+        // Set different colors for each channel, for example:
+        QColor color;
+        color.setHsv(360/(i+1), 255, 255); // Saturation and value set to max (255) for full color
+
+        ui->customPlot->graph(i)->setPen(QPen(color));
+    }
 
     // Adjust the axes ranges based on the new data
     if (!time_axis.isEmpty())
     {
         ui->customPlot->xAxis->setRange(time_axis.first(), time_axis.last());
-        ui->customPlot->yAxis->setRange(*std::min_element(voltage_axis.begin(), voltage_axis.end()),
-                                        *std::max_element(voltage_axis.begin(), voltage_axis.end()));
+
+        double minY = std::numeric_limits<double>::max();
+        double maxY = std::numeric_limits<double>::min();
+        for (const auto& channelData : emg_data)
+        {
+            double channelMin = *std::min_element(channelData.begin(), channelData.end());
+            double channelMax = *std::max_element(channelData.begin(), channelData.end());
+            if (channelMin < minY) minY = channelMin;
+            if (channelMax > maxY) maxY = channelMax;
+        }
+        ui->customPlot->yAxis->setRange(minY, maxY);
     }
 
     // Replot the graph
@@ -354,43 +391,84 @@ void EMGWidget::updateGraph()
 
 void EMGWidget::on_actionClear_triggered()
 {
+    // Clear all graphs from the plot
     ui->customPlot->clearGraphs();
+
+    // Clear the data structures
     time_axis.clear();
-    voltage_axis.clear();
-    ui->customPlot->addGraph();
+    time_axis_string.clear();
+    for (int i = 0; i < num_emg; i++)
+    {
+        emg_data[i].clear();  // Clear each QList<double> in the QVector
+    }
 
-    ui->customPlot->graph(0)->setLineStyle(QCPGraph::lsLine);
-    ui->customPlot->graph(0)->setPen(QPen(plot_color));
-    ui->customPlot->graph(0)->setBrush(Qt::NoBrush);
+    // Re-add the graphs for each EMG channel
+    for (int i = 0; i < num_emg; i++)
+    {
+        QColor color;
+        color.setHsv(360/(i+1), 255, 255); // Saturation and value set to max (255) for full color
 
+        ui->customPlot->addGraph(); // Add a new graph for each EMG channel
+        ui->customPlot->graph(i)->setLineStyle(QCPGraph::lsLine);
+        ui->customPlot->graph(i)->setPen(QPen(color));
+        ui->customPlot->graph(i)->setBrush(Qt::NoBrush);
+    }
+
+    // Update the graph with the cleared data
     ui->customPlot->replot();
 
-    qDebug() << "Plot data cleared. \n";
+    qDebug() << "Plot data cleared.";
 }
-
 
 void EMGWidget::on_actionPlot_color_triggered()
 {
+    // Create a dialog to select the graph to change the color
+    bool ok;
+    QStringList graphNames;
+    for (int i = 0; i < ui->customPlot->graphCount(); ++i) {
+        graphNames << QString("EMG %1").arg(i + 1);
+    }
+
+    QString selectedGraphName = QInputDialog::getItem(this, "Select Graph", "Choose the graph to change color:", graphNames, 0, false, &ok);
+    if (!ok || selectedGraphName.isEmpty()) {
+        qDebug() << "Color change canceled.";
+        return;
+    }
+
+    // Determine the index of the selected graph
+    int graphIndex = graphNames.indexOf(selectedGraphName);
+
     // Open a color dialog and get the selected color
-    QColor newColor = QColorDialog::getColor(plot_color, this, "Select Plot Color");
+    QColor newColor = QColorDialog::getColor(Qt::black, this, "Select Plot Color"); // Default color is black
 
     // Check if the user clicked "OK" and a valid color was selected
-    if (newColor.isValid() && newColor != plot_color)
+    if (newColor.isValid())
     {
-        plot_color = newColor; // Update the plot color
-        ui->customPlot->graph(0)->setPen(QPen(plot_color)); // Apply the new color
-        ui->customPlot->replot(); // Refresh the plot
-        qDebug() << "Plot color changed to:" << plot_color.name(); // Log the new color
+        // Update the plot color for the selected graph
+        if (graphIndex >= 0 && graphIndex < ui->customPlot->graphCount())
+        {
+            ui->customPlot->graph(graphIndex)->setPen(QPen(newColor));
+            ui->customPlot->replot(); // Refresh the plot
+            qDebug() << QString("Graph %1 color changed to: %2").arg(graphIndex + 1).arg(newColor.name()); // Log the new color
+        }
+        else
+        {
+            qWarning() << "Invalid graph index:" << graphIndex;
+        }
     }
     else
     {
-        qDebug() << "Plot color not changed. Current color is:" << plot_color.name(); // Log the current color
+        qDebug() << "Color change canceled or invalid color selected.";
     }
 }
 
-
 void EMGWidget::on_actionDevice_info_triggered()
 {
+    if(deviceID.isEmpty()){
+        QMessageBox::information(this, "Device Info", "Device ID: Unavailable");
+    }
+    else{
     QMessageBox::information(this, "Device Info", "Device ID: " + deviceID);
+    }
 }
 

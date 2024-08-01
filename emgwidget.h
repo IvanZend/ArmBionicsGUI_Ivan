@@ -41,10 +41,11 @@ public slots:
 private:
     Ui::EMGWidget *ui;
     bool connect_status = false;
-    QColor plot_color = QColor(0,0,0);
     QSerialPort m_serial;
     QTextBrowser *logViewer;
     QString deviceID;
+    const quint8 num_emg = 8;
+    QVector<QList<double>> emg_data = QVector<QList<double>>(num_emg);
 
     void refreshGraph(void);
     void plotEMGGraph(void);

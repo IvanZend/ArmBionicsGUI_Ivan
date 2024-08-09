@@ -1,0 +1,13 @@
+# ninja log v6
+23	146	7442156650703013	ArmBionicsGUIWin_autogen/timestamp	800743ecd0b67a78
+23	146	7442156650703013	C:/Users/Admin/Documents/ArmBionicsGUIWin/build/Desktop_Qt_6_7_2_MinGW_64_bit-Debug/ArmBionicsGUIWin_autogen/timestamp	800743ecd0b67a78
+23	146	7442156650703013	ArmBionicsGUIWin_autogen/mocs_compilation.cpp	800743ecd0b67a78
+23	146	7442156650703013	C:/Users/Admin/Documents/ArmBionicsGUIWin/build/Desktop_Qt_6_7_2_MinGW_64_bit-Debug/ArmBionicsGUIWin_autogen/mocs_compilation.cpp	800743ecd0b67a78
+589	2919	7442155944454435	CMakeFiles/ArmBionicsGUIWin.dir/ArmBionicsGUIWin_autogen/mocs_compilation.cpp.obj	28636c44e992e3dd
+592	2978	7442155944454435	CMakeFiles/ArmBionicsGUIWin.dir/main.cpp.obj	dadbdc9f8bb22356
+7	692	7448937906810290	build.ninja	346bcfe66748faed
+29	2136	7442156671088146	QCustomPlot-library/lib/qcustomplot_autogen/timestamp	661c644ed6ca32c
+29	2136	7442156671088146	QCustomPlot-library/lib/qcustomplot_autogen/mocs_compilation.cpp	661c644ed6ca32c
+29	2136	7442156671088146	C:/Users/Admin/Documents/ArmBionicsGUIWin/build/Desktop_Qt_6_7_2_MinGW_64_bit-Debug/QCustomPlot-library/lib/qcustomplot_autogen/timestamp	661c644ed6ca32c
+29	2136	7442156671088146	C:/Users/Admin/Documents/ArmBionicsGUIWin/build/Desktop_Qt_6_7_2_MinGW_64_bit-Debug/QCustomPlot-library/lib/qcustomplot_autogen/mocs_compilation.cpp	661c644ed6ca32c
+24	12446	7442159983225075	QCustomPlot-library/lib/CMakeFiles/qcustomplot.dir/qcustomplot_autogen/mocs_compilation.cpp.obj	a2039976e92e0d20

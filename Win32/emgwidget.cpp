@@ -111,7 +111,7 @@ void EMGWidget::read_data()
         {
             QByteArray packet = buffer.left(PACKET_SIZE);
 
-            // Count occurrences of 'e' (EMG signal start char) in the packet
+            // Count occurrences of EMG handles in the packet
             if(auto_num){
                 quint8 countE = 0;
                 for (char ch : packet)
@@ -139,8 +139,14 @@ void EMGWidget::read_data()
 
             buffer.remove(0, PACKET_SIZE);
 
-            // Recover device ID (keyword, first 4 bytes)
+            // Recover device ID (keyword, first 4 bytes) TEMPORARY, TO CHANGE LATER
             deviceID = QString::fromUtf8(packet.left(KEYWORD_SIZE));
+
+            // To be changed later, bytes 4 to 7
+            // deviceID = QString::fromUtf8(packet.mid(DEVICE_ID_START, DEVICE_ID_SIZE));
+
+            // Recover battery and motor status
+
 
             // Find EMG start keywords
             if (packet[KEYWORD_SIZE] == EMG_HANDLE && packet[KEYWORD_SIZE + EMG_VALUE_SIZE + HANDLE_SIZE] == EMG_HANDLE)
@@ -165,6 +171,7 @@ void EMGWidget::read_data()
             {
                 buffer.remove(0, 1);
             }
+            updateDeviceInfo();
         }
         else
         {
@@ -227,8 +234,60 @@ void EMGWidget::plotEMGGraph(void)
     // Refresh graph
     QTimer *timer = new QTimer(this);
     connect(timer, &QTimer::timeout, this, &EMGWidget::refreshGraph);
-    timer->start(100);
+    timer->start(updateIntervalMs);  // Use the update interval
 }
+
+void EMGWidget::setUpdateInterval(quint8 intervalMs)
+{
+    if (intervalMs > 0)
+    {
+        updateIntervalMs = intervalMs;
+
+        // If the timer is running, restart it with the new interval
+        QTimer *timer = findChild<QTimer*>();
+        if (timer)
+        {
+            timer->stop();
+            timer->start(updateIntervalMs);
+        }
+
+        qDebug() << "Update interval set to:" << updateIntervalMs << "ms";
+    }
+    else
+    {
+        qWarning() << "Invalid update interval:" << intervalMs;
+    }
+}
+
+void EMGWidget::updateDeviceInfo(void)
+{
+    // Create a string with the device information
+    QString infoText = QString("Device ID: %1\nBattery: %2%\nMotor: %3")
+                           .arg(deviceID)
+                           .arg(batteryStatus)
+                           .arg(motorStatus ? "On" : "Off");
+
+    // Find or create the text element for displaying the information
+    QCPTextElement *infoElement = nullptr;
+    if (ui->customPlot->plotLayout()->elementCount() > 1)
+    {
+        infoElement = qobject_cast<QCPTextElement*>(ui->customPlot->plotLayout()->element(1, 0));
+    }
+
+    if (!infoElement)
+    {
+        infoElement = new QCPTextElement(ui->customPlot, infoText, QFont("Helvetica", 10));
+        ui->customPlot->plotLayout()->insertRow(1); // Add a new row for the text
+        ui->customPlot->plotLayout()->addElement(1, 0, infoElement);
+    }
+
+    // Update the text with the latest information
+    infoElement->setText(infoText);
+
+    // Refresh the plot
+    ui->customPlot->replot();
+}
+
 
 void EMGWidget::refreshGraph(void)
 {
@@ -262,7 +321,7 @@ void EMGWidget::saveDataToFile(const QString &filename)
     out << "Time";
     for (int i = 0; i < num_emg; ++i)
     {
-        out << ",\t EMG" << (i + 1);
+        out << (filename.endsWith(".csv", Qt::CaseInsensitive) ? "," : "\t") << "EMG" << (i + 1);
     }
     out << "\n";
 
@@ -271,7 +330,7 @@ void EMGWidget::saveDataToFile(const QString &filename)
         out << time_axis_string[i];
         for (int j = 0; j < num_emg; ++j)
         {
-            out << ",\t" << emg_data[j][i];
+            out << (filename.endsWith(".csv", Qt::CaseInsensitive) ? "," : "\t") << emg_data[j][i];
         }
         out << "\n";
     }
@@ -298,15 +357,18 @@ void EMGWidget::loadDataFromFile(const QString& filename)
         emg_data[i].clear();
     }
 
-    // Read and parse data from file
     QString line;
+
+    // Read and parse data from file
+    QString delimiter = filename.endsWith(".csv", Qt::CaseInsensitive) ? "," : "\t";
+
     // Skip the header line
     in.readLine();
 
     while (!in.atEnd())
     {
         line = in.readLine();
-        QStringList fields = line.split(",\t");
+        QStringList fields = line.split(delimiter);
         if (fields.size() >= (num_emg + 1))
         {
             bool timeOk;
@@ -425,20 +487,31 @@ void EMGWidget::on_actionDevice_info_triggered()
 
 void EMGWidget::on_actionSave_triggered()
 {
-    QString filename = QFileDialog::getSaveFileName(this, "Save Data", "", "Text Files (*.txt);;All Files (*)");
+    if(connect_status){
+    portDisconnect();
+    }
+    QString filename = QFileDialog::getSaveFileName(this, "Save Data", "", "Text Files (*.txt);;CSV Files (*.csv);;All Files (*)");
     if (!filename.isEmpty())
     {
+        // Ensure the file has the correct extension
+        if (!filename.endsWith(".txt", Qt::CaseInsensitive) && !filename.endsWith(".csv", Qt::CaseInsensitive))
+        {
+            // Default to .txt if no extension is provided
+            filename.append(".txt");
+        }
         saveDataToFile(filename);
     }
 }
 
 void EMGWidget::on_actionOpen_triggered(void)
 {
-    // Open a file dialog to select the file to open
-    QString filename = QFileDialog::getOpenFileName(this, "Open Data", "", "Text Files (*.txt);;All Files (*)");
+    if(connect_status){
+        portDisconnect();
+    }
+
+    QString filename = QFileDialog::getOpenFileName(this, "Open Data", "", "Text Files (*.txt);;CSV Files (*.csv);;All Files (*)");
     if (!filename.isEmpty())
     {
-        // Load and plot the data from the selected file
         loadDataFromFile(filename);
     }
 }
@@ -448,9 +521,7 @@ void EMGWidget::on_sensorNumber_triggered()
     auto_num = false;
 
     // Do not allow changes in connected state
-    if(connect_status){
-        disconnect();
-    }
+    portDisconnect();
 
     // Clear data before changing dimensions
     on_actionClear_triggered();

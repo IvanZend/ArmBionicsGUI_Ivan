@@ -33,13 +33,17 @@ private slots:
 
     void on_actionOpen_triggered(void);
 
-    void on_actionClear_triggered(void);
-
     void on_actionPlot_color_triggered(void);
 
     void on_actionDevice_info_triggered(void);
 
     void on_sensorNumber_triggered(void);
+
+    void on_actionClear_plot_triggered();
+    void on_actionClear_log_triggered();
+    void on_actionClear_all_triggered();
+
+
 
 private:
     Ui::EMGWidget *ui;
@@ -82,7 +86,7 @@ private:
     void loadDataFromFile(const QString& filename);
     void setUpdateInterval(quint8 intervalMs);
     qint32 QByteArrayToInt(const QByteArray& bytes);
-    qint16 QByteArrayToShort(const QByteArray& bytes);
+
 };
 
 #endif // EMGWIDGET_H

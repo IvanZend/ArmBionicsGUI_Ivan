@@ -45,10 +45,12 @@ constexpr auto qt_meta_stringdata_CLASSEMGWidgetENDCLASS = QtMocHelpers::stringD
     "on_btn_ConnectDisconnect_clicked",
     "on_actionSave_triggered",
     "on_actionOpen_triggered",
-    "on_actionClear_triggered",
     "on_actionPlot_color_triggered",
     "on_actionDevice_info_triggered",
-    "on_sensorNumber_triggered"
+    "on_sensorNumber_triggered",
+    "on_actionClear_plot_triggered",
+    "on_actionClear_log_triggered",
+    "on_actionClear_all_triggered"
 );
 #else  // !QT_MOC_HAS_STRINGDATA
 #error "qtmochelpers.h not found or too old."
@@ -61,7 +63,7 @@ Q_CONSTINIT static const uint qt_meta_data_CLASSEMGWidgetENDCLASS[] = {
       12,       // revision
        0,       // classname
        0,    0, // classinfo
-       9,   14, // methods
+      11,   14, // methods
        0,    0, // properties
        0,    0, // enums/sets
        0,    0, // constructors
@@ -69,19 +71,23 @@ Q_CONSTINIT static const uint qt_meta_data_CLASSEMGWidgetENDCLASS[] = {
        0,       // signalCount
 
  // slots: name, argc, parameters, tag, flags, initial metatype offsets
-       1,    0,   68,    2, 0x08,    1 /* Private */,
-       3,    1,   69,    2, 0x08,    2 /* Private */,
-       6,    0,   72,    2, 0x08,    4 /* Private */,
-       7,    0,   73,    2, 0x08,    5 /* Private */,
-       8,    0,   74,    2, 0x08,    6 /* Private */,
-       9,    0,   75,    2, 0x08,    7 /* Private */,
-      10,    0,   76,    2, 0x08,    8 /* Private */,
-      11,    0,   77,    2, 0x08,    9 /* Private */,
-      12,    0,   78,    2, 0x08,   10 /* Private */,
+       1,    0,   80,    2, 0x08,    1 /* Private */,
+       3,    1,   81,    2, 0x08,    2 /* Private */,
+       6,    0,   84,    2, 0x08,    4 /* Private */,
+       7,    0,   85,    2, 0x08,    5 /* Private */,
+       8,    0,   86,    2, 0x08,    6 /* Private */,
+       9,    0,   87,    2, 0x08,    7 /* Private */,
+      10,    0,   88,    2, 0x08,    8 /* Private */,
+      11,    0,   89,    2, 0x08,    9 /* Private */,
+      12,    0,   90,    2, 0x08,   10 /* Private */,
+      13,    0,   91,    2, 0x08,   11 /* Private */,
+      14,    0,   92,    2, 0x08,   12 /* Private */,
 
  // slots: parameters
     QMetaType::Void,
     QMetaType::Void, 0x80000000 | 4,    5,
+    QMetaType::Void,
+    QMetaType::Void,
     QMetaType::Void,
     QMetaType::Void,
     QMetaType::Void,
@@ -113,13 +119,17 @@ Q_CONSTINIT const QMetaObject EMGWidget::staticMetaObject = { {
         QtPrivate::TypeAndForceComplete<void, std::false_type>,
         // method 'on_actionOpen_triggered'
         QtPrivate::TypeAndForceComplete<void, std::false_type>,
-        // method 'on_actionClear_triggered'
-        QtPrivate::TypeAndForceComplete<void, std::false_type>,
         // method 'on_actionPlot_color_triggered'
         QtPrivate::TypeAndForceComplete<void, std::false_type>,
         // method 'on_actionDevice_info_triggered'
         QtPrivate::TypeAndForceComplete<void, std::false_type>,
         // method 'on_sensorNumber_triggered'
+        QtPrivate::TypeAndForceComplete<void, std::false_type>,
+        // method 'on_actionClear_plot_triggered'
+        QtPrivate::TypeAndForceComplete<void, std::false_type>,
+        // method 'on_actionClear_log_triggered'
+        QtPrivate::TypeAndForceComplete<void, std::false_type>,
+        // method 'on_actionClear_all_triggered'
         QtPrivate::TypeAndForceComplete<void, std::false_type>
     >,
     nullptr
@@ -136,10 +146,12 @@ void EMGWidget::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int _id, v
         case 2: _t->on_btn_ConnectDisconnect_clicked(); break;
         case 3: _t->on_actionSave_triggered(); break;
         case 4: _t->on_actionOpen_triggered(); break;
-        case 5: _t->on_actionClear_triggered(); break;
-        case 6: _t->on_actionPlot_color_triggered(); break;
-        case 7: _t->on_actionDevice_info_triggered(); break;
-        case 8: _t->on_sensorNumber_triggered(); break;
+        case 5: _t->on_actionPlot_color_triggered(); break;
+        case 6: _t->on_actionDevice_info_triggered(); break;
+        case 7: _t->on_sensorNumber_triggered(); break;
+        case 8: _t->on_actionClear_plot_triggered(); break;
+        case 9: _t->on_actionClear_log_triggered(); break;
+        case 10: _t->on_actionClear_all_triggered(); break;
         default: ;
         }
     }
@@ -164,13 +176,13 @@ int EMGWidget::qt_metacall(QMetaObject::Call _c, int _id, void **_a)
     if (_id < 0)
         return _id;
     if (_c == QMetaObject::InvokeMetaMethod) {
-        if (_id < 9)
+        if (_id < 11)
             qt_static_metacall(this, _c, _id, _a);
-        _id -= 9;
+        _id -= 11;
     } else if (_c == QMetaObject::RegisterMethodArgumentMetaType) {
-        if (_id < 9)
+        if (_id < 11)
             *reinterpret_cast<QMetaType *>(_a[0]) = QMetaType();
-        _id -= 9;
+        _id -= 11;
     }
     return _id;
 }

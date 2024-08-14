@@ -118,6 +118,7 @@ void EMGWidget::portDisconnect(void)
     // Close the serial port
     disconnect(&m_serial, SIGNAL(errorOccurred(QSerialPort::SerialPortError)), this, SLOT(handleSerialPortError(QSerialPort::SerialPortError)));
     m_serial.close();
+
     connect_status = false;
     ui->btn_ConnectDisconnect->setText("Connect");
 
@@ -590,7 +591,7 @@ void EMGWidget::on_sensorNumber_triggered()
     portDisconnect();
 
     // Clear data before changing dimensions
-    on_actionClear_triggered();
+    on_actionClear_plot_triggered();
 
     bool ok;
     quint8 numSensors = QInputDialog::getInt(this, tr("Set Number of Sensors"),
@@ -651,7 +652,27 @@ void EMGWidget::on_actionPlot_color_triggered()
     }
 }
 
-void EMGWidget::on_actionClear_triggered()
+void EMGWidget::on_actionClear_log_triggered()
+{
+    // Clear the log display
+    ui->textBrowser->clear();
+
+    // Optionally log a message
+    qDebug() << "Log cleared.";
+
+    // You might also want to clear any internal log storage if applicable
+}
+
+
+void EMGWidget::on_actionClear_all_triggered()
+{
+    on_actionClear_plot_triggered();
+    on_actionClear_log_triggered();
+
+}
+
+
+void EMGWidget::on_actionClear_plot_triggered()
 {
     // Clear all graphs from the plot
     ui->customPlot->clearGraphs();
@@ -681,3 +702,4 @@ void EMGWidget::on_actionClear_triggered()
 
     qDebug() << "Plot data cleared.";
 }
+

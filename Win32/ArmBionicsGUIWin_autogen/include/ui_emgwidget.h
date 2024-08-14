@@ -31,10 +31,12 @@ class Ui_EMGWidget
 public:
     QAction *actionSave;
     QAction *actionOpen;
-    QAction *actionClear;
+    QAction *actionClear_plot;
     QAction *actionPlot_color;
     QAction *actionDevice_info;
     QAction *sensorNumber;
+    QAction *actionClear_log;
+    QAction *actionClear_all;
     QWidget *centralwidget;
     QGridLayout *gridLayout_2;
     QHBoxLayout *horizontalLayout;
@@ -57,14 +59,18 @@ public:
         actionSave->setObjectName("actionSave");
         actionOpen = new QAction(EMGWidget);
         actionOpen->setObjectName("actionOpen");
-        actionClear = new QAction(EMGWidget);
-        actionClear->setObjectName("actionClear");
+        actionClear_plot = new QAction(EMGWidget);
+        actionClear_plot->setObjectName("actionClear_plot");
         actionPlot_color = new QAction(EMGWidget);
         actionPlot_color->setObjectName("actionPlot_color");
         actionDevice_info = new QAction(EMGWidget);
         actionDevice_info->setObjectName("actionDevice_info");
         sensorNumber = new QAction(EMGWidget);
         sensorNumber->setObjectName("sensorNumber");
+        actionClear_log = new QAction(EMGWidget);
+        actionClear_log->setObjectName("actionClear_log");
+        actionClear_all = new QAction(EMGWidget);
+        actionClear_all->setObjectName("actionClear_all");
         centralwidget = new QWidget(EMGWidget);
         centralwidget->setObjectName("centralwidget");
         gridLayout_2 = new QGridLayout(centralwidget);
@@ -134,7 +140,9 @@ public:
         menuBar->addAction(menuAbout->menuAction());
         menuFile->addAction(actionSave);
         menuFile->addAction(actionOpen);
-        menuEdit->addAction(actionClear);
+        menuEdit->addAction(actionClear_plot);
+        menuEdit->addAction(actionClear_log);
+        menuEdit->addAction(actionClear_all);
         menuEdit->addAction(actionPlot_color);
         menuEdit->addAction(sensorNumber);
         menuAbout->addAction(actionDevice_info);
@@ -155,10 +163,12 @@ public:
 #if QT_CONFIG(shortcut)
         actionOpen->setShortcut(QCoreApplication::translate("EMGWidget", "Ctrl+O", nullptr));
 #endif // QT_CONFIG(shortcut)
-        actionClear->setText(QCoreApplication::translate("EMGWidget", "Clear", nullptr));
+        actionClear_plot->setText(QCoreApplication::translate("EMGWidget", "Clear plot", nullptr));
         actionPlot_color->setText(QCoreApplication::translate("EMGWidget", "Plot color", nullptr));
         actionDevice_info->setText(QCoreApplication::translate("EMGWidget", "Device info", nullptr));
         sensorNumber->setText(QCoreApplication::translate("EMGWidget", "Number of sensors", nullptr));
+        actionClear_log->setText(QCoreApplication::translate("EMGWidget", "Clear log", nullptr));
+        actionClear_all->setText(QCoreApplication::translate("EMGWidget", "Clear all", nullptr));
         btn_ConnectDisconnect->setText(QCoreApplication::translate("EMGWidget", "Connect", nullptr));
         menuFile->setTitle(QCoreApplication::translate("EMGWidget", "File", nullptr));
         menuEdit->setTitle(QCoreApplication::translate("EMGWidget", "Edit", nullptr));

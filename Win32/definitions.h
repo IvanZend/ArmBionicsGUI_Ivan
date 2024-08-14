@@ -8,7 +8,9 @@
 #define EMG_HANDLE 'e'
 #define END_HANDLE 'f'
 #define BATTERY_HANDLE 'b'
+#define BATTERY_STATUS_SIZE 2
 #define MOTOR_HANDLE 'm'
+#define MOTOR_STATUS_SIZE 2
 #define VOLTAGE_COEFFICIENT 1
 #define PACKET_KEYWORD "armb"
 #define DEVICE_ID_START 4

@@ -216,10 +216,10 @@ void EMGWidget::processPacket(const QByteArray &packet)
         }
     }
 
-    // Process battery and motor status
+    // Process battery status
     int batteryHandlePos = packet.indexOf(BATTERY_HANDLE);
     if (batteryHandlePos != -1) {
-        QByteArray batteryBytes = packet.mid(batteryHandlePos + HANDLE_SIZE, 2);
+        QByteArray batteryBytes = packet.mid(batteryHandlePos + HANDLE_SIZE, BATTERY_STATUS_SIZE);
         batteryStatus = static_cast<quint8>(QByteArrayToInt(batteryBytes));
     } else {
         batteryStatus = 0; // Default value or handle the absence of BATTERY_HANDLE
@@ -227,7 +227,7 @@ void EMGWidget::processPacket(const QByteArray &packet)
 
     int motorHandlePos = packet.indexOf(MOTOR_HANDLE);
     if (motorHandlePos != -1) {
-        QByteArray motorBytes = packet.mid(motorHandlePos + HANDLE_SIZE, 2);
+        QByteArray motorBytes = packet.mid(motorHandlePos + HANDLE_SIZE, MOTOR_STATUS_SIZE);
         motorStatus = QByteArrayToInt(motorBytes) != 0;
     } else {
         motorStatus = false; // Default value or handle the absence of MOTOR_HANDLE
@@ -659,18 +659,13 @@ void EMGWidget::on_actionClear_log_triggered()
 
     // Optionally log a message
     qDebug() << "Log cleared.";
-
-    // You might also want to clear any internal log storage if applicable
 }
-
 
 void EMGWidget::on_actionClear_all_triggered()
 {
     on_actionClear_plot_triggered();
     on_actionClear_log_triggered();
-
 }
-
 
 void EMGWidget::on_actionClear_plot_triggered()
 {

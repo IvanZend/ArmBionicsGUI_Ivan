@@ -44,3 +44,6 @@
 41	182	7453355741743544	C:/Users/Admin/Documents/ArmBionicsGUI/Win32/ArmBionicsGUIWin_autogen/mocs_compilation.cpp	b03954a2a55993f
 183	8662	7453355743169621	CMakeFiles/ArmBionicsGUIWin.dir/emgwidget.cpp.obj	9c6437ac27633807
 8662	8857	7453355827952938	ArmBionicsGUIWin.exe	cddb0f5dcb73f724
+27	681	7453360423391577	build/output/amd64/Release/bin/libqcustomplot.dll	9f311c76cb6c246e
+27	681	7453360423391577	build/output/amd64/Release/lib/libqcustomplot.dll.a	9f311c76cb6c246e
+682	839	7453360423501293	ArmBionicsGUIWin.exe	cddb0f5dcb73f724

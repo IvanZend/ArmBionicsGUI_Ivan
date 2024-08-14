@@ -22,18 +22,18 @@ EMGWidget::EMGWidget(QWidget *parent) : QMainWindow(parent) , ui(new Ui::EMGWidg
 
     qDebug() << "Detecting Available Serial Ports";
 
-    // Find available ports and give the option to select them
-    QList<QSerialPortInfo> serial_port_infos = QSerialPortInfo::availablePorts();
-    for (const QSerialPortInfo &port_info : serial_port_infos)
-    {
-        qDebug() << "Port:" << port_info.portName();
-        // Add these found com ports to the combo box
-        ui->cb_COMP->addItem(port_info.portName());
-    }
+    // Setup a timer to periodically check for available serial ports
+    QTimer *portCheckTimer = new QTimer(this);
+    connect(portCheckTimer, &QTimer::timeout, this, &EMGWidget::updateAvailablePorts);
+    portCheckTimer->start(1000);  // Check every second
+
+    // Initial population of the serial ports in the combo box
+    updateAvailablePorts();
 
     // Plot the EMG graph
     plotEMGGraph();
 }
+
 
 EMGWidget::~EMGWidget()
 {
@@ -45,6 +45,46 @@ EMGWidget::~EMGWidget()
 
     delete ui;
 }
+
+void EMGWidget::updateAvailablePorts(void)
+{
+    // Get the list of available ports
+    QList<QSerialPortInfo> serial_port_infos = QSerialPortInfo::availablePorts();
+
+    // Store current ports in a set for fast lookup
+    QSet<QString> currentPorts;
+    for (int i = 0; i < ui->cb_COMP->count(); ++i) {
+        currentPorts.insert(ui->cb_COMP->itemText(i));
+    }
+
+    // Set to store new ports
+    QSet<QString> newPorts;
+
+    // Iterate through available ports and add only new ones
+    for (const QSerialPortInfo &port_info : serial_port_infos)
+    {
+        QString portName = port_info.portName();
+        if (!currentPorts.contains(portName))
+        {
+            qDebug() << "New Port detected:" << portName;
+            ui->cb_COMP->addItem(portName);
+        }
+        newPorts.insert(portName);
+    }
+
+    // Iterate through the current ports and remove ones that do not exist anymore
+    for (int i = 0; i < ui->cb_COMP->count(); ++i)
+    {
+        QString portName = ui->cb_COMP->itemText(i);
+        if (!newPorts.contains(portName))
+        {
+            qDebug() << "Port no longer available:" << portName;
+            ui->cb_COMP->removeItem(i);
+            --i; // Adjust index after removal
+        }
+    }
+}
+
 
 void EMGWidget::portConfig(QSerialPort::BaudRate baudRate, QSerialPort::DataBits dataBits, QSerialPort::Parity parity,
                            QSerialPort::StopBits stopBits, QSerialPort::FlowControl flowControl)
@@ -107,70 +147,16 @@ void EMGWidget::read_data()
 
     while (buffer.size() >= PACKET_SIZE)
     {
-        if (buffer.left(KEYWORD_SIZE) == PACKET_KEYWORD)
-        {
-            QByteArray packet = buffer.left(PACKET_SIZE);
+        if (isPacketValid(buffer)) {
+            QByteArray packet = extractPacket(buffer);
 
-            // Count occurrences of EMG handles in the packet
-            if(auto_num){
-                quint8 countE = 0;
-                for (char ch : packet)
-                {
-                    if (ch == EMG_HANDLE)
-                    {
-                        ++countE;
-                    }
-                }
-
-                // Update num_emg based on count of 'e'
-                if (countE != num_emg)
-                {
-                    num_emg = countE;
-                    emg_data.resize(num_emg);
-                    for (quint8 i = 0; i < num_emg; ++i)
-                    {
-                        if (i >= emg_data.size())
-                        {
-                            emg_data.append(QList<double>());
-                        }
-                    }
-                }
+            if (auto_num) {
+                updateEMGCount(packet);
             }
 
+            processPacket(packet);
             buffer.remove(0, PACKET_SIZE);
 
-            // Recover device ID (keyword, first 4 bytes) TEMPORARY, TO CHANGE LATER
-            deviceID = QString::fromUtf8(packet.left(KEYWORD_SIZE));
-
-            // To be changed later, bytes 4 to 7
-            // deviceID = QString::fromUtf8(packet.mid(DEVICE_ID_START, DEVICE_ID_SIZE));
-
-            // Recover battery and motor status
-
-
-            // Find EMG start keywords
-            if (packet[KEYWORD_SIZE] == EMG_HANDLE && packet[KEYWORD_SIZE + EMG_VALUE_SIZE + HANDLE_SIZE] == EMG_HANDLE)
-            {
-                double now = QDateTime::currentMSecsSinceEpoch();
-                time_axis.append(now / 1000.0);  // Convert to seconds for plotting
-                time_axis_string.append(QDateTime::currentDateTime().toString("hh:mm:ss.zzz"));
-
-                QStringList emg_values;
-
-                for (quint8 i = 0; i < num_emg; i++)
-                {
-                    QByteArray emg_bytes = packet.mid(KEYWORD_SIZE + i * EMG_VALUE_SIZE + (i + 1) * HANDLE_SIZE, EMG_VALUE_SIZE);
-                    int emg = VOLTAGE_COEFFICIENT*QByteArrayToInt(emg_bytes);
-                    emg_data[i].append(emg);
-                    emg_values << QString("EMG%1: %2").arg(i + 1).arg(emg);
-                }
-
-                qDebug() << QDateTime::currentDateTime().toString("hh:mm:ss.zzz") << "\t" << emg_values.join(", ");
-            }
-            else
-            {
-                buffer.remove(0, 1);
-            }
             updateDeviceInfo();
         }
         else
@@ -180,10 +166,90 @@ void EMGWidget::read_data()
     }
 }
 
+bool EMGWidget::isPacketValid(const QByteArray &buffer)
+{
+    return buffer.left(KEYWORD_SIZE) == PACKET_KEYWORD;
+}
+
+QByteArray EMGWidget::extractPacket(QByteArray &buffer)
+{
+    return buffer.left(PACKET_SIZE);
+}
+
+void EMGWidget::updateEMGCount(const QByteArray &packet)
+{
+    quint8 countE = packet.count(EMG_HANDLE);
+
+    if (countE != num_emg) {
+        num_emg = countE;
+        emg_data.resize(num_emg);
+
+        for (quint8 i = 0; i < num_emg; ++i) {
+            if (i >= emg_data.size()) {
+                emg_data.append(QList<double>());
+            }
+        }
+    }
+}
+
+void EMGWidget::processPacket(const QByteArray &packet)
+{
+    deviceID = QString::fromUtf8(packet.left(KEYWORD_SIZE));
+
+    double now = QDateTime::currentMSecsSinceEpoch();
+    time_axis.append(now / 1000.0);
+    time_axis_string.append(QDateTime::currentDateTime().toString("hh:mm:ss.zzz"));
+
+    QStringList emg_values;
+
+    // Find and process each EMG_HANDLE and corresponding EMG data
+    int position = 0;
+    for (quint8 i = 0; i < num_emg; ++i) {
+        position = findNextEMGHandle(packet, position);
+        if (position != -1) {
+            processEMGData(packet, position, emg_values);
+            position += HANDLE_SIZE + EMG_VALUE_SIZE;  // Move past the EMG_HANDLE and data
+        } else {
+            qWarning() << "EMG_HANDLE not found for index" << i;
+            break;
+        }
+    }
+
+    // Process battery and motor status
+    int batteryHandlePos = packet.indexOf(BATTERY_HANDLE);
+    if (batteryHandlePos != -1) {
+        QByteArray batteryBytes = packet.mid(batteryHandlePos + HANDLE_SIZE, 2);
+        batteryStatus = static_cast<quint8>(QByteArrayToInt(batteryBytes));
+    } else {
+        batteryStatus = 0; // Default value or handle the absence of BATTERY_HANDLE
+    }
+
+    int motorHandlePos = packet.indexOf(MOTOR_HANDLE);
+    if (motorHandlePos != -1) {
+        QByteArray motorBytes = packet.mid(motorHandlePos + HANDLE_SIZE, 2);
+        motorStatus = QByteArrayToInt(motorBytes) != 0;
+    } else {
+        motorStatus = false; // Default value or handle the absence of MOTOR_HANDLE
+    }
+
+    qDebug() << QDateTime::currentDateTime().toString("hh:mm:ss.zzz") << "\t" << emg_values.join(", ");
+}
+
+quint8 EMGWidget::findNextEMGHandle(const QByteArray &packet, int startPos)
+{
+    return packet.indexOf(EMG_HANDLE, startPos);
+}
+
+void EMGWidget::processEMGData(const QByteArray &packet, int emg_handle_pos, QStringList &emg_values)
+{
+    QByteArray emg_bytes = packet.mid(emg_handle_pos + HANDLE_SIZE, EMG_VALUE_SIZE);
+    int emg = VOLTAGE_COEFFICIENT * QByteArrayToInt(emg_bytes);
+    emg_data[emg_handle_pos / (HANDLE_SIZE + EMG_VALUE_SIZE)].append(emg);
+    emg_values << QString("EMG%1: %2").arg(emg_handle_pos / (HANDLE_SIZE + EMG_VALUE_SIZE) + 1).arg(emg);
+}
+
 qint32 EMGWidget::QByteArrayToInt(const QByteArray& bytes)
 {
-    // Function to convert 4-byte QByteArray to integer
-
     // Ensure the byte array represents a valid ASCII number
     QString str = QString::fromUtf8(bytes); // Convert bytes to QString (UTF-8)
     bool ok;

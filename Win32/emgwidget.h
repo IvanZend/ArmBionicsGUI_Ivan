@@ -23,6 +23,8 @@ public:
     ~EMGWidget();
 
 private slots:
+    void read_data(void);
+
     void handleSerialPortError(QSerialPort::SerialPortError error);
 
     void on_btn_ConnectDisconnect_clicked(void);
@@ -38,9 +40,6 @@ private slots:
     void on_actionDevice_info_triggered(void);
 
     void on_sensorNumber_triggered(void);
-
-public slots:
-    void read_data(void);
 
 private:
     Ui::EMGWidget *ui;
@@ -61,9 +60,18 @@ private:
     quint8 batteryStatus = 0;
     bool motorStatus = false;
 
+    void updateAvailablePorts(void);
     void portConfig(QSerialPort::BaudRate baudRate = QSerialPort::Baud115200, QSerialPort::DataBits dataBits = QSerialPort::Data8,
                     QSerialPort::Parity parity = QSerialPort::NoParity, QSerialPort::StopBits stopBits = QSerialPort::OneStop,
                     QSerialPort::FlowControl flowControl = QSerialPort::NoFlowControl);
+
+    bool isPacketValid(const QByteArray &buffer);
+    QByteArray extractPacket(QByteArray &buffer);
+    void updateEMGCount(const QByteArray &packet);
+    void processPacket(const QByteArray &packet);
+    void processEMGData(const QByteArray &packet, int emg_handle_pos, QStringList &emg_values);
+    quint8 findNextEMGHandle(const QByteArray &packet, int startPos);
+
     void portConnect(void);
     void portDisconnect(void);
     void refreshGraph(void);
@@ -74,6 +82,7 @@ private:
     void loadDataFromFile(const QString& filename);
     void setUpdateInterval(quint8 intervalMs);
     qint32 QByteArrayToInt(const QByteArray& bytes);
+    qint16 QByteArrayToShort(const QByteArray& bytes);
 };
 
 #endif // EMGWIDGET_H

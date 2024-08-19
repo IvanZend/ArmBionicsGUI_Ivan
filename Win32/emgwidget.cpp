@@ -52,7 +52,7 @@ void EMGWidget::updateAvailablePorts(void)
 
     // Store available ports
     QSet<QString> currentPorts;
-    for (int i = 0; i < ui->cb_COMP->count(); ++i) {
+    for (quint32 i = 0; i < ui->cb_COMP->count(); ++i) {
         currentPorts.insert(ui->cb_COMP->itemText(i));
     }
 
@@ -72,7 +72,7 @@ void EMGWidget::updateAvailablePorts(void)
     }
 
     // Iterate through the current ports and remove unavailable ports
-    for (int i = 0; i < ui->cb_COMP->count(); ++i)
+    for (quint32 i = 0; i < ui->cb_COMP->count(); ++i)
     {
         QString portName = ui->cb_COMP->itemText(i);
         if (!newPorts.contains(portName))
@@ -226,7 +226,7 @@ void EMGWidget::processPacket(const QByteArray &packet)
     QStringList emg_values;
 
     // Find and process each EMG_HANDLE and corresponding EMG data
-    int position = 0;
+    quint32 position = 0;
     for (quint8 i = 0; i < num_emg; ++i) {
         position = findNextEMGHandle(packet, position);
         if (position != -1) {
@@ -276,7 +276,7 @@ qint32 EMGWidget::QByteArrayToInt(const QByteArray& bytes)
     // Ensure the byte array represents a valid ASCII number
     QString str = QString::fromUtf8(bytes); // Convert bytes to QString (UTF-8)
     bool ok;
-    int number = str.toInt(&ok); // Convert QString to integer
+    quint32 number = str.toInt(&ok); // Convert QString to integer
     return ok ? number : 0; // Return 0 if conversion fails
 }
 
@@ -408,16 +408,16 @@ void EMGWidget::saveDataToFile(const QString &filename)
     QTextStream out(&file);
 
     out << "Time";
-    for (int i = 0; i < num_emg; ++i)
+    for (quint32 i = 0; i < num_emg; ++i)
     {
         out << (filename.endsWith(".csv", Qt::CaseInsensitive) ? "," : "\t") << "EMG" << (i + 1);
     }
     out << "\n";
 
-    for (int i = 0; i < time_axis.size(); ++i)
+    for (quint32 i = 0; i < time_axis.size(); ++i)
     {
         out << time_axis_string[i];
-        for (int j = 0; j < num_emg; ++j)
+        for (quint32 j = 0; j < num_emg; ++j)
         {
             out << (filename.endsWith(".csv", Qt::CaseInsensitive) ? "," : "\t") << emg_data[j][i];
         }
@@ -446,7 +446,7 @@ void EMGWidget::loadDataFromFile(const QString& filename)
     // Clear previous data
     time_axis.clear();
     time_axis_string.clear();
-    for (int i = 0; i < num_emg; ++i) {
+    for (quint32 i = 0; i < num_emg; ++i) {
         emg_data[i].clear();
     }
 
@@ -473,14 +473,14 @@ void EMGWidget::loadDataFromFile(const QString& filename)
 
                 bool allEmgOk = true;
                 QVector<double> emg_values(num_emg);
-                for (int i = 0; i < num_emg; ++i) {
+                for (quint32 i = 0; i < num_emg; ++i) {
                     bool emgOk;
                     emg_values[i] = fields[i + 1].toDouble(&emgOk);
                     allEmgOk = allEmgOk && emgOk;
                 }
 
                 if (allEmgOk) {
-                    for (int i = 0; i < num_emg; ++i) {
+                    for (quint32 i = 0; i < num_emg; ++i) {
                         emg_data[i].append(emg_values[i]);
                     }
                 }
@@ -500,7 +500,7 @@ void EMGWidget::updateGraph()
     ui->customPlot->clearGraphs();
 
     // Add a graph for each EMG channel and set the data
-    for (int i = 0; i < num_emg; ++i)
+    for (quint32 i = 0; i < num_emg; ++i)
     {
         ui->customPlot->addGraph();
         ui->customPlot->graph(i)->setData(time_axis, emg_data[i]);
@@ -629,7 +629,7 @@ void EMGWidget::on_sensorNumber_triggered()
 
         // Clear previous data
         emg_data.resize(num_emg);
-        for (int i = 0; i < num_emg; ++i) {
+        for (quint32 i = 0; i < num_emg; ++i) {
             emg_data[i].clear();
         }
         plotEMGGraph();
@@ -641,7 +641,7 @@ void EMGWidget::on_actionPlot_color_triggered()
     // Create a dialog to select the graph to change the color
     bool ok;
     QStringList graphNames;
-    for (int i = 0; i < ui->customPlot->graphCount(); ++i) {
+    for (quint32 i = 0; i < ui->customPlot->graphCount(); ++i) {
         graphNames << QString("EMG %1").arg(i + 1);
     }
 
@@ -652,7 +652,7 @@ void EMGWidget::on_actionPlot_color_triggered()
     }
 
     // Determine the index of the selected graph
-    int graphIndex = graphNames.indexOf(selectedGraphName);
+    quint32 graphIndex = graphNames.indexOf(selectedGraphName);
 
     // Open a color dialog and get the selected color
     QColor newColor = QColorDialog::getColor(Qt::black, this, "Select Plot Color"); // Default color is black
@@ -701,13 +701,13 @@ void EMGWidget::on_actionClear_plot_triggered()
     // Clear the data structures
     time_axis.clear();
     time_axis_string.clear();
-    for (int i = 0; i < num_emg; i++)
+    for (quint32 i = 0; i < num_emg; i++)
     {
         emg_data[i].clear();  // Clear each QList<double> in the QVector
     }
 
     // Re-add the graphs for each EMG channel
-    for (int i = 0; i < num_emg; i++)
+    for (quint32 i = 0; i < num_emg; i++)
     {
         QColor color;
         color.setHsv(360/(i+1), 255, 255); // Saturation and value set to max (255) for full color

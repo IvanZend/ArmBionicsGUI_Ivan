@@ -112,6 +112,7 @@ void EMGWidget::portConnect(void)
     connect(&m_serial, SIGNAL(readyRead()), this, SLOT(read_data()));
     connect(&m_serial, SIGNAL(errorOccurred(QSerialPort::SerialPortError)), this, SLOT(handleSerialPortError(QSerialPort::SerialPortError)));
 
+    // For saving purposes
     portOpened = true;
     dataSaved = false;
     saveDialogShown = false;

@@ -49,8 +49,8 @@ private slots:
 private:
     Ui::EMGWidget *ui;
 
-    bool connect_status = false;
     QSerialPort m_serial; // Serial port class to setup the COM Port
+    bool connect_status = false; // Device connection st
 
     QTextBrowser *logViewer; // To log data
 

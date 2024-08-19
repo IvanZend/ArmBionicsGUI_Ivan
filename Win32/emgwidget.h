@@ -22,6 +22,9 @@ public:
     EMGWidget(QWidget *parent = nullptr);
     ~EMGWidget();
 
+protected:
+    void closeEvent(QCloseEvent *event) override;
+
 private slots:
     void read_data(void);
 
@@ -43,8 +46,6 @@ private slots:
     void on_actionClear_log_triggered();
     void on_actionClear_all_triggered();
 
-
-
 private:
     Ui::EMGWidget *ui;
 
@@ -60,9 +61,14 @@ private:
     QVector<QList<double>> emg_data = QVector<QList<double>>(num_emg);
 
     // Device attributes
-    QString deviceID = "none";
+    QString deviceID = "None";
     quint8 batteryStatus = 0;
     bool motorStatus = false;
+
+    // To track save status
+    bool dataSaved = true;
+    bool portOpened = false;
+    bool saveDialogShown = false;
 
     void updateAvailablePorts(void);
     void portConfig(QSerialPort::BaudRate baudRate = QSerialPort::Baud115200, QSerialPort::DataBits dataBits = QSerialPort::Data8,
@@ -73,8 +79,8 @@ private:
     QByteArray extractPacket(QByteArray &buffer);
     void updateEMGCount(const QByteArray &packet);
     void processPacket(const QByteArray &packet);
-    void processEMGData(const QByteArray &packet, int emg_handle_pos, QStringList &emg_values);
-    quint8 findNextEMGHandle(const QByteArray &packet, int startPos);
+    void processEMGData(const QByteArray &packet, quint32 emg_handle_pos, QStringList &emg_values);
+    quint8 findNextEMGHandle(const QByteArray &packet, quint32 startPos);
 
     void portConnect(void);
     void portDisconnect(void);

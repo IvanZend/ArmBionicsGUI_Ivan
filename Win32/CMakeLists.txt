@@ -11,7 +11,7 @@ set(CMAKE_AUTORCC ON)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Build in release mode
+# Build in release mode (debug mode bugged- too many sections/files too big)
 set(CMAKE_BUILD_TYPE Release)
 
 # Find the Qt package

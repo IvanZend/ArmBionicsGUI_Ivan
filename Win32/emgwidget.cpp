@@ -34,7 +34,6 @@ EMGWidget::EMGWidget(QWidget *parent) : QMainWindow(parent) , ui(new Ui::EMGWidg
     plotEMGGraph();
 }
 
-
 EMGWidget::~EMGWidget()
 {
     // Close the serial port if it's open
@@ -51,16 +50,16 @@ void EMGWidget::updateAvailablePorts(void)
     // Get the list of available ports
     QList<QSerialPortInfo> serial_port_infos = QSerialPortInfo::availablePorts();
 
-    // Store current ports in a set for fast lookup
+    // Store available ports
     QSet<QString> currentPorts;
     for (int i = 0; i < ui->cb_COMP->count(); ++i) {
         currentPorts.insert(ui->cb_COMP->itemText(i));
     }
 
-    // Set to store new ports
+    // Store new ports
     QSet<QString> newPorts;
 
-    // Iterate through available ports and add only new ones
+    // Iterate through available ports and add new ones
     for (const QSerialPortInfo &port_info : serial_port_infos)
     {
         QString portName = port_info.portName();
@@ -72,7 +71,7 @@ void EMGWidget::updateAvailablePorts(void)
         newPorts.insert(portName);
     }
 
-    // Iterate through the current ports and remove ones that do not exist anymore
+    // Iterate through the current ports and remove unavailable ports
     for (int i = 0; i < ui->cb_COMP->count(); ++i)
     {
         QString portName = ui->cb_COMP->itemText(i);
@@ -80,11 +79,10 @@ void EMGWidget::updateAvailablePorts(void)
         {
             qDebug() << "Port no longer available:" << portName;
             ui->cb_COMP->removeItem(i);
-            --i; // Adjust index after removal
+            --i;
         }
     }
 }
-
 
 void EMGWidget::portConfig(QSerialPort::BaudRate baudRate, QSerialPort::DataBits dataBits, QSerialPort::Parity parity,
                            QSerialPort::StopBits stopBits, QSerialPort::FlowControl flowControl)
@@ -100,15 +98,23 @@ void EMGWidget::portConnect(void)
 {
     qDebug() << "Serial Port Opened Successfully";
     m_serial.write("Hello World from Qt\r\n");
+
+    // Change connection status
     connect_status = true;
+
+    // Change combo box text
     ui->btn_ConnectDisconnect->setText("Disconnect");
 
     // Disable the combo box
     ui->cb_COMP->setEnabled(false);
 
-    // Connect signal and slots
+    // Connect signal and slots to combo box
     connect(&m_serial, SIGNAL(readyRead()), this, SLOT(read_data()));
     connect(&m_serial, SIGNAL(errorOccurred(QSerialPort::SerialPortError)), this, SLOT(handleSerialPortError(QSerialPort::SerialPortError)));
+
+    portOpened = true;
+    dataSaved = false;
+    saveDialogShown = false;
 }
 
 void EMGWidget::portDisconnect(void)
@@ -119,15 +125,22 @@ void EMGWidget::portDisconnect(void)
     disconnect(&m_serial, SIGNAL(errorOccurred(QSerialPort::SerialPortError)), this, SLOT(handleSerialPortError(QSerialPort::SerialPortError)));
     m_serial.close();
 
+    // Chage connection status
     connect_status = false;
+
+    // Change combo box text
     ui->btn_ConnectDisconnect->setText("Connect");
 
     // Enable the combo box
     ui->cb_COMP->setEnabled(true);
+
+    portOpened = false;
+    saveDialogShown = false;
 }
 
 void EMGWidget::handleSerialPortError(QSerialPort::SerialPortError error)
 {
+    // Return error message pop-up
     if (error == QSerialPort::ResourceError) {
         qWarning() << "Error:" << m_serial.errorString();
         portDisconnect();
@@ -139,11 +152,13 @@ void EMGWidget::handleSerialPortError(QSerialPort::SerialPortError error)
 
 void EMGWidget::read_data()
 {
+    // Check if port is open
     if (!m_serial.isOpen()) {
         qWarning() << "Serial port not open. Cannot read data.";
         return;
     }
 
+    // Fill the buffer with serial port data
     buffer.append(m_serial.readAll());
 
     while (buffer.size() >= PACKET_SIZE)
@@ -151,13 +166,17 @@ void EMGWidget::read_data()
         if (isPacketValid(buffer)) {
             QByteArray packet = extractPacket(buffer);
 
+            // By default counts the num of channels automatically
             if (auto_num) {
                 updateEMGCount(packet);
             }
 
             processPacket(packet);
+
+            // Remove packet from buffer after processing
             buffer.remove(0, PACKET_SIZE);
 
+            // Continuously check for device status
             updateDeviceInfo();
         }
         else
@@ -169,16 +188,19 @@ void EMGWidget::read_data()
 
 bool EMGWidget::isPacketValid(const QByteArray &buffer)
 {
+    // Check if packet's first (left) KEYWORD_SIZE bytes match PACKET_KEYWORD
     return buffer.left(KEYWORD_SIZE) == PACKET_KEYWORD;
 }
 
 QByteArray EMGWidget::extractPacket(QByteArray &buffer)
 {
+    // Extract PACKET_SIZE bytes
     return buffer.left(PACKET_SIZE);
 }
 
 void EMGWidget::updateEMGCount(const QByteArray &packet)
 {
+    // Count number of EMG_HANDLE chars in packet
     quint8 countE = packet.count(EMG_HANDLE);
 
     if (countE != num_emg) {
@@ -217,7 +239,7 @@ void EMGWidget::processPacket(const QByteArray &packet)
     }
 
     // Process battery status
-    int batteryHandlePos = packet.indexOf(BATTERY_HANDLE);
+    quint32 batteryHandlePos = packet.indexOf(BATTERY_HANDLE);
     if (batteryHandlePos != -1) {
         QByteArray batteryBytes = packet.mid(batteryHandlePos + HANDLE_SIZE, BATTERY_STATUS_SIZE);
         batteryStatus = static_cast<quint8>(QByteArrayToInt(batteryBytes));
@@ -225,7 +247,7 @@ void EMGWidget::processPacket(const QByteArray &packet)
         batteryStatus = 0; // Default value or handle the absence of BATTERY_HANDLE
     }
 
-    int motorHandlePos = packet.indexOf(MOTOR_HANDLE);
+    quint32 motorHandlePos = packet.indexOf(MOTOR_HANDLE);
     if (motorHandlePos != -1) {
         QByteArray motorBytes = packet.mid(motorHandlePos + HANDLE_SIZE, MOTOR_STATUS_SIZE);
         motorStatus = QByteArrayToInt(motorBytes) != 0;
@@ -236,15 +258,15 @@ void EMGWidget::processPacket(const QByteArray &packet)
     qDebug() << QDateTime::currentDateTime().toString("hh:mm:ss.zzz") << "\t" << emg_values.join(", ");
 }
 
-quint8 EMGWidget::findNextEMGHandle(const QByteArray &packet, int startPos)
+quint8 EMGWidget::findNextEMGHandle(const QByteArray &packet, quint32 startPos)
 {
     return packet.indexOf(EMG_HANDLE, startPos);
 }
 
-void EMGWidget::processEMGData(const QByteArray &packet, int emg_handle_pos, QStringList &emg_values)
+void EMGWidget::processEMGData(const QByteArray &packet, quint32 emg_handle_pos, QStringList &emg_values)
 {
     QByteArray emg_bytes = packet.mid(emg_handle_pos + HANDLE_SIZE, EMG_VALUE_SIZE);
-    int emg = VOLTAGE_COEFFICIENT * QByteArrayToInt(emg_bytes);
+    quint32 emg = VOLTAGE_COEFFICIENT * QByteArrayToInt(emg_bytes);
     emg_data[emg_handle_pos / (HANDLE_SIZE + EMG_VALUE_SIZE)].append(emg);
     emg_values << QString("EMG%1: %2").arg(emg_handle_pos / (HANDLE_SIZE + EMG_VALUE_SIZE) + 1).arg(emg);
 }
@@ -404,6 +426,10 @@ void EMGWidget::saveDataToFile(const QString &filename)
 
     file.close();
     qInfo() << "Data saved to" << filename;
+
+    dataSaved = true;
+    portOpened = false;
+    saveDialogShown = false;
 }
 
 void EMGWidget::loadDataFromFile(const QString& filename)
@@ -697,4 +723,32 @@ void EMGWidget::on_actionClear_plot_triggered()
 
     qDebug() << "Plot data cleared.";
 }
+
+void EMGWidget::closeEvent(QCloseEvent *event) {
+    if(connect_status){
+        portDisconnect();
+        portOpened = true;
+    }
+
+    if (!dataSaved && portOpened && !saveDialogShown) {
+        // Prompt the user to save if data is not saved and port was opened. Only shows dialog once.
+        auto reply = QMessageBox::question(this, "Unsaved Changes",
+                                           "You have unsaved changes. Do you want to save them before exiting?",
+                                           QMessageBox::Yes | QMessageBox::No | QMessageBox::Cancel);
+
+        saveDialogShown = true; // Indicate that the dialog has been shown.
+
+        if (reply == QMessageBox::Yes) {
+            on_actionSave_triggered();
+            event->accept();
+        } else if (reply == QMessageBox::No) {
+            event->accept();
+        } else {
+            event->ignore(); // Keep the application open if the user chooses Cancel.
+        }
+    } else {
+        event->accept(); // No need to prompt if data is saved or the dialog has been shown.
+    }
+}
+
 

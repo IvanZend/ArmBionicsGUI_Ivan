@@ -115,7 +115,9 @@
     <property name="title">
      <string>Edit</string>
     </property>
-    <addaction name="actionClear"/>
+    <addaction name="actionClear_plot"/>
+    <addaction name="actionClear_log"/>
+    <addaction name="actionClear_all"/>
     <addaction name="actionPlot_color"/>
     <addaction name="sensorNumber"/>
    </widget>
@@ -145,9 +147,9 @@
     <string>Ctrl+O</string>
    </property>
   </action>
-  <action name="actionClear">
+  <action name="actionClear_plot">
    <property name="text">
-    <string>Clear</string>
+    <string>Clear plot</string>
    </property>
   </action>
   <action name="actionPlot_color">
@@ -163,6 +165,16 @@
   <action name="sensorNumber">
    <property name="text">
     <string>Number of sensors</string>
+   </property>
+  </action>
+  <action name="actionClear_log">
+   <property name="text">
+    <string>Clear log</string>
+   </property>
+  </action>
+  <action name="actionClear_all">
+   <property name="text">
+    <string>Clear all</string>
    </property>
   </action>
  </widget>

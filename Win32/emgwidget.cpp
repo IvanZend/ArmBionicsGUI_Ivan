@@ -22,14 +22,13 @@ EMGWidget::EMGWidget(QWidget *parent) : QMainWindow(parent) , ui(new Ui::EMGWidg
 
     qDebug() << "Detecting Available Serial Ports";
 
-    // Find available ports and give the option to select them
-    QList<QSerialPortInfo> serial_port_infos = QSerialPortInfo::availablePorts();
-    for (const QSerialPortInfo &port_info : serial_port_infos)
-    {
-        qDebug() << "Port:" << port_info.portName();
-        // Add these found com ports to the combo box
-        ui->cb_COMP->addItem(port_info.portName());
-    }
+    // Setup a timer to periodically check for available serial ports
+    QTimer *portCheckTimer = new QTimer(this);
+    connect(portCheckTimer, &QTimer::timeout, this, &EMGWidget::updateAvailablePorts);
+    portCheckTimer->start(1000);  // Check every second
+
+    // Initial population of the serial ports in the combo box
+    updateAvailablePorts();
 
     // Plot the EMG graph
     plotEMGGraph();
@@ -46,6 +45,45 @@ EMGWidget::~EMGWidget()
     delete ui;
 }
 
+void EMGWidget::updateAvailablePorts(void)
+{
+    // Get the list of available ports
+    QList<QSerialPortInfo> serial_port_infos = QSerialPortInfo::availablePorts();
+
+    // Store available ports
+    QSet<QString> currentPorts;
+    for (quint32 i = 0; i < ui->cb_COMP->count(); ++i) {
+        currentPorts.insert(ui->cb_COMP->itemText(i));
+    }
+
+    // Store new ports
+    QSet<QString> newPorts;
+
+    // Iterate through available ports and add new ones
+    for (const QSerialPortInfo &port_info : serial_port_infos)
+    {
+        QString portName = port_info.portName();
+        if (!currentPorts.contains(portName))
+        {
+            qDebug() << "New Port detected:" << portName;
+            ui->cb_COMP->addItem(portName);
+        }
+        newPorts.insert(portName);
+    }
+
+    // Iterate through the current ports and remove unavailable ports
+    for (quint32 i = 0; i < ui->cb_COMP->count(); ++i)
+    {
+        QString portName = ui->cb_COMP->itemText(i);
+        if (!newPorts.contains(portName))
+        {
+            qDebug() << "Port no longer available:" << portName;
+            ui->cb_COMP->removeItem(i);
+            --i;
+        }
+    }
+}
+
 void EMGWidget::portConfig(QSerialPort::BaudRate baudRate, QSerialPort::DataBits dataBits, QSerialPort::Parity parity,
                            QSerialPort::StopBits stopBits, QSerialPort::FlowControl flowControl)
 {
@@ -60,15 +98,24 @@ void EMGWidget::portConnect(void)
 {
     qDebug() << "Serial Port Opened Successfully";
     m_serial.write("Hello World from Qt\r\n");
+
+    // Change connection status
     connect_status = true;
+
+    // Change combo box text
     ui->btn_ConnectDisconnect->setText("Disconnect");
 
     // Disable the combo box
     ui->cb_COMP->setEnabled(false);
 
-    // Connect signal and slots
+    // Connect signal and slots to combo box
     connect(&m_serial, SIGNAL(readyRead()), this, SLOT(read_data()));
     connect(&m_serial, SIGNAL(errorOccurred(QSerialPort::SerialPortError)), this, SLOT(handleSerialPortError(QSerialPort::SerialPortError)));
+
+    // For saving purposes
+    portOpened = true;
+    dataSaved = false;
+    saveDialogShown = false;
 }
 
 void EMGWidget::portDisconnect(void)
@@ -78,15 +125,23 @@ void EMGWidget::portDisconnect(void)
     // Close the serial port
     disconnect(&m_serial, SIGNAL(errorOccurred(QSerialPort::SerialPortError)), this, SLOT(handleSerialPortError(QSerialPort::SerialPortError)));
     m_serial.close();
+
+    // Chage connection status
     connect_status = false;
+
+    // Change combo box text
     ui->btn_ConnectDisconnect->setText("Connect");
 
     // Enable the combo box
     ui->cb_COMP->setEnabled(true);
+
+    portOpened = false;
+    saveDialogShown = false;
 }
 
 void EMGWidget::handleSerialPortError(QSerialPort::SerialPortError error)
 {
+    // Return error message pop-up
     if (error == QSerialPort::ResourceError) {
         qWarning() << "Error:" << m_serial.errorString();
         portDisconnect();
@@ -98,79 +153,31 @@ void EMGWidget::handleSerialPortError(QSerialPort::SerialPortError error)
 
 void EMGWidget::read_data()
 {
+    // Check if port is open
     if (!m_serial.isOpen()) {
         qWarning() << "Serial port not open. Cannot read data.";
         return;
     }
 
+    // Fill the buffer with serial port data
     buffer.append(m_serial.readAll());
 
     while (buffer.size() >= PACKET_SIZE)
     {
-        if (buffer.left(KEYWORD_SIZE) == PACKET_KEYWORD)
-        {
-            QByteArray packet = buffer.left(PACKET_SIZE);
+        if (isPacketValid(buffer)) {
+            QByteArray packet = extractPacket(buffer);
 
-            // Count occurrences of EMG handles in the packet
-            if(auto_num){
-                quint8 countE = 0;
-                for (char ch : packet)
-                {
-                    if (ch == EMG_HANDLE)
-                    {
-                        ++countE;
-                    }
-                }
-
-                // Update num_emg based on count of 'e'
-                if (countE != num_emg)
-                {
-                    num_emg = countE;
-                    emg_data.resize(num_emg);
-                    for (quint8 i = 0; i < num_emg; ++i)
-                    {
-                        if (i >= emg_data.size())
-                        {
-                            emg_data.append(QList<double>());
-                        }
-                    }
-                }
+            // By default counts the num of channels automatically
+            if (auto_num) {
+                updateEMGCount(packet);
             }
 
+            processPacket(packet);
+
+            // Remove packet from buffer after processing
             buffer.remove(0, PACKET_SIZE);
 
-            // Recover device ID (keyword, first 4 bytes) TEMPORARY, TO CHANGE LATER
-            deviceID = QString::fromUtf8(packet.left(KEYWORD_SIZE));
-
-            // To be changed later, bytes 4 to 7
-            // deviceID = QString::fromUtf8(packet.mid(DEVICE_ID_START, DEVICE_ID_SIZE));
-
-            // Recover battery and motor status
-
-
-            // Find EMG start keywords
-            if (packet[KEYWORD_SIZE] == EMG_HANDLE && packet[KEYWORD_SIZE + EMG_VALUE_SIZE + HANDLE_SIZE] == EMG_HANDLE)
-            {
-                double now = QDateTime::currentMSecsSinceEpoch();
-                time_axis.append(now / 1000.0);  // Convert to seconds for plotting
-                time_axis_string.append(QDateTime::currentDateTime().toString("hh:mm:ss.zzz"));
-
-                QStringList emg_values;
-
-                for (quint8 i = 0; i < num_emg; i++)
-                {
-                    QByteArray emg_bytes = packet.mid(KEYWORD_SIZE + i * EMG_VALUE_SIZE + (i + 1) * HANDLE_SIZE, EMG_VALUE_SIZE);
-                    int emg = VOLTAGE_COEFFICIENT*QByteArrayToInt(emg_bytes);
-                    emg_data[i].append(emg);
-                    emg_values << QString("EMG%1: %2").arg(i + 1).arg(emg);
-                }
-
-                qDebug() << QDateTime::currentDateTime().toString("hh:mm:ss.zzz") << "\t" << emg_values.join(", ");
-            }
-            else
-            {
-                buffer.remove(0, 1);
-            }
+            // Continuously check for device status
             updateDeviceInfo();
         }
         else
@@ -180,14 +187,97 @@ void EMGWidget::read_data()
     }
 }
 
+bool EMGWidget::isPacketValid(const QByteArray &buffer)
+{
+    // Check if packet's first (left) KEYWORD_SIZE bytes match PACKET_KEYWORD
+    return buffer.left(KEYWORD_SIZE) == PACKET_KEYWORD;
+}
+
+QByteArray EMGWidget::extractPacket(QByteArray &buffer)
+{
+    // Extract PACKET_SIZE bytes
+    return buffer.left(PACKET_SIZE);
+}
+
+void EMGWidget::updateEMGCount(const QByteArray &packet)
+{
+    // Count number of EMG_HANDLE chars in packet
+    quint8 countE = packet.count(EMG_HANDLE);
+
+    if (countE != num_emg) {
+        num_emg = countE;
+        emg_data.resize(num_emg);
+
+        for (quint8 i = 0; i < num_emg; ++i) {
+            if (i >= emg_data.size()) {
+                emg_data.append(QList<double>());
+            }
+        }
+    }
+}
+
+void EMGWidget::processPacket(const QByteArray &packet)
+{
+    deviceID = QString::fromUtf8(packet.left(KEYWORD_SIZE));
+
+    double now = QDateTime::currentMSecsSinceEpoch();
+    time_axis.append(now / 1000.0);
+    time_axis_string.append(QDateTime::currentDateTime().toString("hh:mm:ss.zzz"));
+
+    QStringList emg_values;
+
+    // Find and process each EMG_HANDLE and corresponding EMG data
+    quint32 position = 0;
+    for (quint8 i = 0; i < num_emg; ++i) {
+        position = findNextEMGHandle(packet, position);
+        if (position != -1) {
+            processEMGData(packet, position, emg_values);
+            position += HANDLE_SIZE + EMG_VALUE_SIZE;  // Move past the EMG_HANDLE and data
+        } else {
+            qWarning() << "EMG_HANDLE not found for index" << i;
+            break;
+        }
+    }
+
+    // Process battery status
+    quint32 batteryHandlePos = packet.indexOf(BATTERY_HANDLE);
+    if (batteryHandlePos != -1) {
+        QByteArray batteryBytes = packet.mid(batteryHandlePos + HANDLE_SIZE, BATTERY_STATUS_SIZE);
+        batteryStatus = static_cast<quint8>(QByteArrayToInt(batteryBytes));
+    } else {
+        batteryStatus = 0; // Default value or handle the absence of BATTERY_HANDLE
+    }
+
+    quint32 motorHandlePos = packet.indexOf(MOTOR_HANDLE);
+    if (motorHandlePos != -1) {
+        QByteArray motorBytes = packet.mid(motorHandlePos + HANDLE_SIZE, MOTOR_STATUS_SIZE);
+        motorStatus = QByteArrayToInt(motorBytes) != 0;
+    } else {
+        motorStatus = false; // Default value or handle the absence of MOTOR_HANDLE
+    }
+
+    qDebug() << QDateTime::currentDateTime().toString("hh:mm:ss.zzz") << "\t" << emg_values.join(", ");
+}
+
+quint8 EMGWidget::findNextEMGHandle(const QByteArray &packet, quint32 startPos)
+{
+    return packet.indexOf(EMG_HANDLE, startPos);
+}
+
+void EMGWidget::processEMGData(const QByteArray &packet, quint32 emg_handle_pos, QStringList &emg_values)
+{
+    QByteArray emg_bytes = packet.mid(emg_handle_pos + HANDLE_SIZE, EMG_VALUE_SIZE);
+    quint32 emg = VOLTAGE_COEFFICIENT * QByteArrayToInt(emg_bytes);
+    emg_data[emg_handle_pos / (HANDLE_SIZE + EMG_VALUE_SIZE)].append(emg);
+    emg_values << QString("EMG%1: %2").arg(emg_handle_pos / (HANDLE_SIZE + EMG_VALUE_SIZE) + 1).arg(emg);
+}
+
 qint32 EMGWidget::QByteArrayToInt(const QByteArray& bytes)
 {
-    // Function to convert 4-byte QByteArray to integer
-
     // Ensure the byte array represents a valid ASCII number
     QString str = QString::fromUtf8(bytes); // Convert bytes to QString (UTF-8)
     bool ok;
-    int number = str.toInt(&ok); // Convert QString to integer
+    quint32 number = str.toInt(&ok); // Convert QString to integer
     return ok ? number : 0; // Return 0 if conversion fails
 }
 
@@ -319,16 +409,16 @@ void EMGWidget::saveDataToFile(const QString &filename)
     QTextStream out(&file);
 
     out << "Time";
-    for (int i = 0; i < num_emg; ++i)
+    for (quint32 i = 0; i < num_emg; ++i)
     {
         out << (filename.endsWith(".csv", Qt::CaseInsensitive) ? "," : "\t") << "EMG" << (i + 1);
     }
     out << "\n";
 
-    for (int i = 0; i < time_axis.size(); ++i)
+    for (quint32 i = 0; i < time_axis.size(); ++i)
     {
         out << time_axis_string[i];
-        for (int j = 0; j < num_emg; ++j)
+        for (quint32 j = 0; j < num_emg; ++j)
         {
             out << (filename.endsWith(".csv", Qt::CaseInsensitive) ? "," : "\t") << emg_data[j][i];
         }
@@ -337,6 +427,10 @@ void EMGWidget::saveDataToFile(const QString &filename)
 
     file.close();
     qInfo() << "Data saved to" << filename;
+
+    dataSaved = true;
+    portOpened = false;
+    saveDialogShown = false;
 }
 
 void EMGWidget::loadDataFromFile(const QString& filename)
@@ -353,7 +447,7 @@ void EMGWidget::loadDataFromFile(const QString& filename)
     // Clear previous data
     time_axis.clear();
     time_axis_string.clear();
-    for (int i = 0; i < num_emg; ++i) {
+    for (quint32 i = 0; i < num_emg; ++i) {
         emg_data[i].clear();
     }
 
@@ -380,14 +474,14 @@ void EMGWidget::loadDataFromFile(const QString& filename)
 
                 bool allEmgOk = true;
                 QVector<double> emg_values(num_emg);
-                for (int i = 0; i < num_emg; ++i) {
+                for (quint32 i = 0; i < num_emg; ++i) {
                     bool emgOk;
                     emg_values[i] = fields[i + 1].toDouble(&emgOk);
                     allEmgOk = allEmgOk && emgOk;
                 }
 
                 if (allEmgOk) {
-                    for (int i = 0; i < num_emg; ++i) {
+                    for (quint32 i = 0; i < num_emg; ++i) {
                         emg_data[i].append(emg_values[i]);
                     }
                 }
@@ -407,7 +501,7 @@ void EMGWidget::updateGraph()
     ui->customPlot->clearGraphs();
 
     // Add a graph for each EMG channel and set the data
-    for (int i = 0; i < num_emg; ++i)
+    for (quint32 i = 0; i < num_emg; ++i)
     {
         ui->customPlot->addGraph();
         ui->customPlot->graph(i)->setData(time_axis, emg_data[i]);
@@ -524,7 +618,7 @@ void EMGWidget::on_sensorNumber_triggered()
     portDisconnect();
 
     // Clear data before changing dimensions
-    on_actionClear_triggered();
+    on_actionClear_plot_triggered();
 
     bool ok;
     quint8 numSensors = QInputDialog::getInt(this, tr("Set Number of Sensors"),
@@ -536,7 +630,7 @@ void EMGWidget::on_sensorNumber_triggered()
 
         // Clear previous data
         emg_data.resize(num_emg);
-        for (int i = 0; i < num_emg; ++i) {
+        for (quint32 i = 0; i < num_emg; ++i) {
             emg_data[i].clear();
         }
         plotEMGGraph();
@@ -548,7 +642,7 @@ void EMGWidget::on_actionPlot_color_triggered()
     // Create a dialog to select the graph to change the color
     bool ok;
     QStringList graphNames;
-    for (int i = 0; i < ui->customPlot->graphCount(); ++i) {
+    for (quint32 i = 0; i < ui->customPlot->graphCount(); ++i) {
         graphNames << QString("EMG %1").arg(i + 1);
     }
 
@@ -559,7 +653,7 @@ void EMGWidget::on_actionPlot_color_triggered()
     }
 
     // Determine the index of the selected graph
-    int graphIndex = graphNames.indexOf(selectedGraphName);
+    quint32 graphIndex = graphNames.indexOf(selectedGraphName);
 
     // Open a color dialog and get the selected color
     QColor newColor = QColorDialog::getColor(Qt::black, this, "Select Plot Color"); // Default color is black
@@ -585,7 +679,22 @@ void EMGWidget::on_actionPlot_color_triggered()
     }
 }
 
-void EMGWidget::on_actionClear_triggered()
+void EMGWidget::on_actionClear_log_triggered()
+{
+    // Clear the log display
+    ui->textBrowser->clear();
+
+    // Optionally log a message
+    qDebug() << "Log cleared.";
+}
+
+void EMGWidget::on_actionClear_all_triggered()
+{
+    on_actionClear_plot_triggered();
+    on_actionClear_log_triggered();
+}
+
+void EMGWidget::on_actionClear_plot_triggered()
 {
     // Clear all graphs from the plot
     ui->customPlot->clearGraphs();
@@ -593,13 +702,13 @@ void EMGWidget::on_actionClear_triggered()
     // Clear the data structures
     time_axis.clear();
     time_axis_string.clear();
-    for (int i = 0; i < num_emg; i++)
+    for (quint32 i = 0; i < num_emg; i++)
     {
         emg_data[i].clear();  // Clear each QList<double> in the QVector
     }
 
     // Re-add the graphs for each EMG channel
-    for (int i = 0; i < num_emg; i++)
+    for (quint32 i = 0; i < num_emg; i++)
     {
         QColor color;
         color.setHsv(360/(i+1), 255, 255); // Saturation and value set to max (255) for full color
@@ -615,3 +724,32 @@ void EMGWidget::on_actionClear_triggered()
 
     qDebug() << "Plot data cleared.";
 }
+
+void EMGWidget::closeEvent(QCloseEvent *event) {
+    if(connect_status){
+        portDisconnect();
+        portOpened = true;
+    }
+
+    if (!dataSaved && portOpened && !saveDialogShown) {
+        // Prompt the user to save if data is not saved and port was opened. Only shows dialog once.
+        auto reply = QMessageBox::question(this, "Unsaved Changes",
+                                           "You have unsaved changes. Do you want to save them before exiting?",
+                                           QMessageBox::Yes | QMessageBox::No | QMessageBox::Cancel);
+
+        saveDialogShown = true; // Indicate that the dialog has been shown.
+
+        if (reply == QMessageBox::Yes) {
+            on_actionSave_triggered();
+            event->accept();
+        } else if (reply == QMessageBox::No) {
+            event->accept();
+        } else {
+            event->ignore(); // Keep the application open if the user chooses Cancel.
+        }
+    } else {
+        event->accept(); // No need to prompt if data is saved or the dialog has been shown.
+    }
+}
+
+
